@@ -2,11 +2,11 @@
 
 ## System boundaries
 
-Use a modular monolith: one React client, one Express API, and one PostgreSQL database. The API authenticates users and coordinates business workflows. PostgreSQL stores normalized records and enforces financial integrity. All transfers are recorded acknowledgements of payments outside the application.
+Use a modular monolith: one React client, one FastAPI service, and one PostgreSQL database. The API authenticates users and coordinates business workflows. PostgreSQL stores normalized records and enforces financial integrity. All transfers are recorded acknowledgements of payments outside the application.
 
 ```mermaid
 flowchart LR
-    U[Browser / React] -->|HTTPS JSON and session cookie| A[Express routes and authorization]
+    U[Browser / React] -->|HTTPS JSON and session cookie| A[FastAPI routes and authorization]
     A --> S[Expense, settlement, correction services]
     A --> R[History and report services]
     S -->|Parameterized calls in transactions| D[(PostgreSQL)]

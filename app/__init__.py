@@ -1,0 +1,1 @@
+"""SplitWise+ FastAPI application."""
