@@ -1,0 +1,20 @@
+openapi: 3.1.0
+info:
+  title: SplitWise+ API
+  version: 1.0.0
+  description: Session-authenticated API for group expenses, settlements, corrections, and debt suggestions.
+servers:
+  - url: /api/v1
+paths:
+  /auth/register: { post: { summary: Register and start a session } }
+  /auth/login: { post: { summary: Log in } }
+  /auth/logout: { post: { summary: Log out } }
+  /me: { get: { summary: Current user } }
+  /groups: { get: { summary: List groups }, post: { summary: Create group } }
+  /groups/{id}/members: { post: { summary: Add an existing registered user } }
+  /groups/{id}/expenses: { post: { summary: Post an expense, requires Idempotency-Key } }
+  /groups/{id}/expenses/{eventId}/corrections: { post: { summary: Reverse and replace an expense, requires Idempotency-Key } }
+  /groups/{id}/settlements: { post: { summary: Record a settlement, requires Idempotency-Key } }
+  /groups/{id}/balances: { get: { summary: Read current balances } }
+  /groups/{id}/settlement-suggestions: { get: { summary: Calculate deterministic debt suggestions } }
+  /groups/{id}/history: { get: { summary: Read chronological event history } }

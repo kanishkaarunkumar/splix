@@ -29,7 +29,7 @@ Defer multi-currency, real payment gateways, receipt OCR, recurring bills, invit
 
 | Week | Deliverable | Exit condition |
 | --- | --- | --- |
-| 1 — Foundation | Repository structure, local PostgreSQL, ER model, migrations, API contract, UI sketches, authentication skeleton | Everyone can run the same seeded database; agree on money representation and balance signs. |
+| 1 — Foundation | Repository structure, local PostgreSQL, ER model, migrations, FastAPI contract, UI sketches, authentication skeleton | Everyone can run the same seeded database; agree on money representation and balance signs. |
 | 2 — First complete flow | Login, groups/membership, equal-split expense creation, ledger posting, balances | Browser-created expense is persisted and produces correct SQL balances. |
 | 3 — Financial rules | Percentage/exact splits, settlements, debt suggestions, idempotency, transaction locks | Invalid payments fail; parallel payment attempts cannot over-settle. |
 | 4 — Audit and reporting | Corrections, paginated history, monthly SQL reports, CSV and charts | Reversal preserves history; reports reconcile with ledger balances. |

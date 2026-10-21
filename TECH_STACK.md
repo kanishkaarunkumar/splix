@@ -2,14 +2,14 @@
 
 ## Recommended stack
 
-Use a TypeScript web application with PostgreSQL and explicit SQL. This keeps one language across the interface and API while making the DBMS concepts visible for assessment. These are proposed choices; no packages are installed by this document.
+Use a React web application with a Python FastAPI backend, PostgreSQL, and explicit SQL. Python keeps financial rules readable while FastAPI provides typed request validation and an OpenAPI contract. These are proposed choices; no packages are installed by this document.
 
 | Layer | Choice | Purpose |
 | --- | --- | --- |
 | Browser | React + TypeScript, built with Vite | Group dashboard, expense forms, history, settlement and report screens. |
-| Navigation | React Router in library mode | Client-side page navigation; the Express API owns server behavior. |
+| Navigation | React Router in library mode | Client-side page navigation; the FastAPI service owns server behavior. |
 | Styling | CSS Modules and shared design tokens | Responsive layouts without another application framework. |
-| API | Node.js 24 LTS + Express 5 + TypeScript | Small REST API with explicit service and repository layers. |
+| API | Python 3.12+ + FastAPI + Pydantic | Small REST API with typed schemas, explicit service/repository layers, and generated OpenAPI. |
 | Validation | Zod | Validate request shapes and share nonfinancial DTO definitions. |
 | Database | PostgreSQL 18 | Relational data, constraints, transactions, locks, SQL reports, and indexes. |
 | SQL access | `pg` / node-postgres | Parameterized queries and explicit transaction boundaries using one checked-out connection. |
@@ -17,11 +17,11 @@ Use a TypeScript web application with PostgreSQL and explicit SQL. This keeps on
 | Authentication | Argon2id password hashes; `express-session` with PostgreSQL session store | Server-side sessions, HTTP-only cookies, and persistent login state. |
 | Charts | Recharts | Category and monthly spending charts backed by SQL results. |
 | Exports | Server-generated CSV | Monthly report download using the same report query as the screen. |
-| Tests | Vitest, Supertest, Playwright | Financial unit tests, API/database tests, and complete browser journeys. |
-| Local environment | Docker Compose for PostgreSQL; npm workspaces | Reproducible database and shared web/API packages. |
-| Quality | ESLint, Prettier, TypeScript checks, GitHub Actions | Reviewable formatting and automated build/test checks. |
+| Tests | pytest, HTTPX, Playwright | Financial unit tests, API/database tests, and complete browser journeys. |
+| Local environment | Docker Compose for PostgreSQL; Python virtual environment | Reproducible database and web/API development. |
+| Quality | Ruff, mypy, pytest, GitHub Actions | Reviewable formatting, type checks, and automated tests. |
 
-Use supported stable versions, pin exact resolved dependencies in the lockfile, and commit `.nvmrc` and the database image version when scaffolding. Node 24 is the selected LTS baseline, subject to verification at implementation time using the [official Node release schedule](https://nodejs.org/en/about/previous-releases). Vite provides a React TypeScript scaffold in its [getting-started documentation](https://vite.dev/guide/).
+Use supported stable Python versions, pin resolved dependencies in `uv.lock` or a requirements lockfile, and commit the database image version when scaffolding. Python 3.12 is the selected baseline. FastAPI publishes the interactive OpenAPI documentation at `/docs` and `/redoc`.
 
 ## Implementation conventions
 
@@ -39,14 +39,13 @@ Use supported stable versions, pin exact resolved dependencies in the lockfile, 
 ```text
 apps/
   web/src/             # React pages, components, forms, API client
-  api/src/
-    routes/            # HTTP validation and session/group authorization
+  api/app/
+    main.py            # FastAPI routes, sessions, and exception mapping
+    domain/            # Split rules and domain errors
     services/          # Split, settlement, correction, reporting workflows
     repositories/      # Parameterized SQL
     db/                # Pool and transaction helpers
-packages/
-  contracts/           # DTO schemas and API types
-  money/               # Pure integer allocation utilities
+  tests/               # pytest unit, API, and concurrency tests
 ```
 
 The root also contains `db/migrations/`, `db/seeds/`, `db/queries/`, `tests/integration/`, `tests/e2e/`, `docs/evidence/`, `compose.yaml`, `.env.example`, and these four planning documents. Keep secrets out of version control.
