@@ -1,0 +1,12 @@
+# Synthetic, sanitized cases only; labels describe this fixture set, not live-app performance.
+1|com.phonepe.app|Payment successful|Paid ₹1,234.50 to Cafe UPI Ref No 123456789012
+1|net.one97.paytm|Payment successful|INR 45.00 paid to Grocery UPI reference No TXN123456789
+1|com.google.android.apps.nbu.paisa.user|Debited|Debited ₹1,000 to Merchant
+1|com.phonepe.app|UPI transfer|₹19.99 sent to Store UPI Ref: 1234567890
+0|com.phonepe.app|Money received|Received ₹500 from Friend
+0|com.phonepe.app|Payment failed|Failed, debited ₹10 to Shop
+0|com.phonepe.app|Payment pending|Pending ₹10 to Shop
+0|unselected.test.app|Payment successful|Paid ₹5 to Cafe UPI Ref 12345678
+0|com.phonepe.app|Payment successful|Paid ₹10 and balance ₹1000 to Shop
+0|com.phonepe.app|Payment successful|Paid ₹1,00,000 to Shop
+0|com.phonepe.app|Transfer complete|Sent Rs. 25 to Merchant

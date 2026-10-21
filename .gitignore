@@ -1,0 +1,12 @@
+.env
+*.dump
+*.backup
+*.apk
+*.aab
+android/local.properties
+android/.gradle/
+android/.kotlin/
+android/**/build/
+__pycache__/
+.pytest_cache/
+.venv/

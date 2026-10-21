@@ -22,6 +22,34 @@ INSERT INTO group_members(group_id, user_id) VALUES
  ('10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000003')
 ON CONFLICT DO NOTHING;
 
--- Deliberately only seeds the schema and three members. Financial records should be created
--- through the posting functions so the same lock and validation protocol is exercised.
+-- Financial examples go through controlled posting functions, just like API writes.
+-- Only initialize an empty demo group; later seed runs must not add duplicate expenses.
+DO $$
+DECLARE v_group uuid := '10000000-0000-4000-8000-000000000001';
+        v_a uuid := '00000000-0000-4000-8000-000000000001';
+        v_b uuid := '00000000-0000-4000-8000-000000000002';
+        v_c uuid := '00000000-0000-4000-8000-000000000003';
+        v_other smallint;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM financial_events WHERE group_id=v_group) THEN
+    SELECT id INTO v_other FROM categories WHERE name='Other';
+    PERFORM post_expense(v_group,v_a,v_a,current_date,'Demo: A paid ₹1,500',v_other,150000,'exact',
+      jsonb_build_object('shares',jsonb_build_array(
+        jsonb_build_object('user_id',v_a,'share_paise',50000,'percentage_bps',NULL),
+        jsonb_build_object('user_id',v_b,'share_paise',50000,'percentage_bps',NULL),
+        jsonb_build_object('user_id',v_c,'share_paise',50000,'percentage_bps',NULL))));
+    PERFORM post_expense(v_group,v_b,v_b,current_date,'Demo: B paid ₹500',v_other,50000,'exact',
+      jsonb_build_object('shares',jsonb_build_array(
+        jsonb_build_object('user_id',v_a,'share_paise',16666,'percentage_bps',NULL),
+        jsonb_build_object('user_id',v_b,'share_paise',16667,'percentage_bps',NULL),
+        jsonb_build_object('user_id',v_c,'share_paise',16667,'percentage_bps',NULL))));
+    PERFORM post_expense(v_group,v_c,v_c,current_date,'Demo: C paid ₹1,000',v_other,100000,'exact',
+      jsonb_build_object('shares',jsonb_build_array(
+        jsonb_build_object('user_id',v_a,'share_paise',33334,'percentage_bps',NULL),
+        jsonb_build_object('user_id',v_b,'share_paise',33333,'percentage_bps',NULL),
+        jsonb_build_object('user_id',v_c,'share_paise',33333,'percentage_bps',NULL))));
+    PERFORM post_settlement(v_group,v_b,current_date,v_b,v_a,50000,'Demo full settlement');
+  END IF;
+END $$;
+
 COMMIT;
