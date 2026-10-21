@@ -1,5 +1,9 @@
 # Monthly reporting and CSV contract
 
+## Delivery status and mobile boundary
+
+The queries exist; the API, CSV serializer, and mobile file/share flow are planned. Person 1 owns SQL/reconciliation fixtures, Person 2 the snapshot/API/CSV implementation, and Person 3 mobile presentation/export. Report only committed financial events. Private payment suggestions and queued offline mutations must not affect totals or be included in group exports. Closed-trip summaries use the same confirmed ledger data.
+
 ## API data contract
 
 `GET /api/v1/groups/:id/reports/monthly?month=YYYY-MM&format=json|csv` takes a calendar month in the group's configured timezone. Convert its first local day to a date and use an inclusive start and exclusive next-month start. The SQL in `db/queries/monthly_report.sql` returns each member's opening/closing balance, paid amount, assigned shares, and settlements sent/received; `db/queries/monthly_category_totals.sql` returns category spending. Run both statements in one read-only `REPEATABLE READ` transaction. Serialize every paise integer as a base-10 JSON string.

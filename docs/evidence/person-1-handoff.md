@@ -1,5 +1,11 @@
 # Person 1 database handoff
 
+## Mobile revision and remaining ownership
+
+This records existing SQL, not a completed application. The product is now Android-first Splix; [PEOPLE.md](../../PEOPLE.md) assigns remaining work. Person 1 validates/extends the database and owns native capture; Person 2 owns every HTTP service including reporting/CSV; Person 3 owns mobile UI and offline queue orchestration. Persons 1 and 3 agree shared local storage before implementation. Private capture drafts never become server financial records without review.
+
+New migrations must cover weighted shares, presets, notes, lifecycle/join/session extensions as agreed, archive checks in controlled write functions, and a linked atomic correction contract. Current `post_expense` accepts only equal/percentage/exact and has no correction-link parameter. Existing `001` must not be rewritten to imply these extensions exist.
+
 ## Owned artifacts
 
 - `db/migrations/001_financial_schema.sql`: normalized tables, scoped keys, indexes, derived balance view, immutable-row triggers, deferred integrity validator, and controlled post/reverse functions.

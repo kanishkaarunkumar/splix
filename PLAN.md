@@ -1,74 +1,99 @@
-# SplitWise+ — Project Plan
+# Splix — Mobile Product Plan
 
-## Objective
+## Product direction
 
-Build a shared expense web application for friends, roommates, and travelers. Users create groups, record expenses, see outstanding balances, and record payments suggested by a debt simplification algorithm. The application records payments made outside the app; it does not transfer money.
+Build an Android-first shared-expense app for friends, roommates, and travelers. The promise: **pay normally, get a timely suggestion, and split the expense in a few taps**. The complete manual app works without notification access. Splix records payments made outside the app; it does not transfer money or verify bank transactions.
 
-This is a proposed plan for a new repository and a three-person academic project. Assume six weeks, INR only, one payer per expense, and up to 50 members per group. Adjust the schedule to the course deadline. Roles are defined in [PEOPLE.md](PEOPLE.md), system design in [ARCHITECTURE.md](ARCHITECTURE.md), and tools in [TECH_STACK.md](TECH_STACK.md).
+The differentiator is optional Active Group Mode: a supported outgoing UPI-app notification becomes a private draft for review, never an automatically posted expense. Detection coverage is a feasibility question, not a guarantee or a claim of global product novelty. Start with INR, one payer per expense, and up to 50 members per group.
 
-## Scope and acceptance criteria
+See [architecture](ARCHITECTURE.md), [technology choices](TECH_STACK.md), [remaining ownership](PEOPLE.md), and the [capture specification](docs/payment-capture.md).
 
-| Feature | Required behavior and completion criteria |
+## Current implementation status — October 20, 2026
+
+- Existing source: financial-schema migration; expense/settlement/reversal functions; immutable-ledger guards; balance/report SQL; seed categories, users, group, and memberships.
+- Not verified: migration execution, database integration/concurrency tests, query-plan measurements, and backup/restore. Written SQL is not runtime evidence.
+- Missing: mobile app, native capture, API/authentication, split-allocation utilities, offline queue, actual CSV generation, and automated tests.
+- Partial foundations: idempotency storage exists without replay behavior; reversals exist without an atomic linked replacement workflow. Weighted splits, notes, presets, sessions, join codes, and group archival need schema extensions. The seed contains placeholder password hashes and no financial events.
+
+Everything below is planned unless explicitly identified as existing SQL. Do not mark documentation as implementation.
+
+## Core app requirements
+
+| Feature | Acceptance criteria |
 | --- | --- |
-| Accounts | Register, log in, log out; users cannot access groups they do not belong to. |
-| Groups | Create a group; owner adds existing registered users; list members and groups. Members with history are retained, with departure deferred beyond the MVP. |
-| Expenses | Record title, category, date, payer, amount, and participant subset. All participants and the payer must be members. |
-| Equal split | Split integer paise deterministically; ₹100 among three people yields ₹33.34, ₹33.33, ₹33.33. |
-| Percentage split | Accept percentages to two decimal places summing to 100%; allocate remaining paise deterministically. |
-| Exact split | Accept nonnegative shares whose total exactly matches the expense. Reject invalid totals. |
-| Balances | Show total paid, assigned shares, payments sent/received, and net balance per member. Group balances always sum to zero. |
-| Settlements | Record full or partial debtor-to-creditor payments; reject self-payments, excessive amounts, and nonmembers. Retry of one request creates only one payment. |
-| History | Paginated chronological expense, settlement, and correction history, with actor and recording time. |
-| Monthly reports | Show spending by category and member, settlements separately, opening/closing balances, and CSV export. |
-| Debt simplification | Produce valid suggested transfers preserving every member's net balance; deterministic output and no automatic payment recording. |
-| Corrections | Append reversal and replacement records atomically; original financial records remain visible. |
+| Accounts | Register, log in/out, recover access, edit profile, and request account deletion. Revoke sessions and agree personal-data removal versus retained financial audit history before release; never cascade-delete group history. |
+| Groups | Create/list groups; owner approves members through revocable, expiring join codes/links; archive completed groups. Retain historical memberships; no invitation-email dependency. |
+| Expenses | Amount, payer, title, category, effective date, optional note, and participant subset. Payer need not participate but all referenced users must be members. |
+| Equal split | Integer paise, deterministic user-ID tie breaks; ₹100 across three gives ₹33.34, ₹33.33, ₹33.33. |
+| Percentage/exact splits | Percentage weights total 10,000 basis points; exact shares total the expense. Reject invalid inputs instead of silently normalizing. |
+| Weighted shares | Positive integer weights and deterministic largest-remainder allocation. Extend database validation through a new migration before enabling. |
+| Balances/explanation | Paid, assigned shares, settlements sent/received, and net balance, with contributing-event drill-down. Group net balances sum to zero. |
+| Suggestions/settlements | Deterministic suggested transfers preserve net balances; record partial/full external payments with live checks and idempotent retries. Suggestions do not record payments. |
+| History/corrections | Paginated, searchable activity with actor, effective/recorded times, and correction links. Reverse and replace atomically; preserve originals. |
+| Reports/CSV | Monthly spending by member/category, settlement activity, opening/closing balances, and mobile download/share of CSV from the same report data. |
 
-Defer multi-currency, real payment gateways, receipt OCR, recurring bills, invitation emails, mobile apps, and distributed databases. An immutable ledger is included in the planned scope because it provides useful transaction and audit demonstrations; implement it after basic expense posting works.
+## Signature and usability requirements
 
-## Six-week delivery sequence
+| Feature | Acceptance criteria |
+| --- | --- |
+| Active Group Mode | Explicit activation of one capture group per device for a bounded duration; visible expiry and pause/stop. Switching groups does not silently reassign older drafts. |
+| Android capture | After disclosure and consent, inspect only allowlisted supported UPI-app notifications. Identify likely outgoing payments; no SMS reading, accessibility scraping, or bank-feed assumption. |
+| Review prompt | Offer Review, Not shared, and Later when local notifications/background behavior allow; private inbox remains the fallback. Opening a prompt never posts. |
+| Private suggestion inbox | Local/account-scoped drafts. Choose Expense, Settlement, Personal, or Dismiss; verify group/amount/payer/participants. Only explicit confirmation invokes the financial API. |
+| Duplicate handling | Merge source-notification updates; use references when available and flag uncertain amount/time matches. API idempotency independently protects financial retries. |
+| Split presets | Named group participant/split defaults; preview before applying, revalidate membership, and snapshot final shares into each expense. |
+| Offline drafts | Persist manual drafts and confirmed mutations locally. Show pending versus committed state; stable request keys survive restart. Never label uncommitted balances as confirmed. |
+| Trip closeout | Review this device's drafts/pending writes and group balances before archiving; export settlement summary. Do not imply access to other members' private inboxes. |
 
-| Week | Deliverable | Exit condition |
+## Feasibility and privacy gate
+
+Prototype the Android listener before promising capture. Record support by payment-app/version, Android version, and device, including misses and false positives. Some sources emit no usable notification; content can be restricted/redacted and device/background behavior varies. Do not advertise universal detection or iOS background parity.
+
+Review current platform/store rules at prototype and release. Agree draft retention/deletion, backup exclusions, lock-screen privacy, and revocation behavior. Parse raw text transiently on-device; do not upload or log it. Store minimum review fields. Consent is necessary but is not a guarantee of store approval. Do not use notification access to bypass SMS restrictions.
+
+If capture is unreliable or unsuitable for distribution, ship the manual product and user-initiated share/import fallback. No source signal may bypass user confirmation and normal financial validation.
+
+## Delivery sequence from the current repository
+
+These are milestones, not completed work or fixed dates. If six academic weeks are available, use one milestone per week as an initial estimate, revising after the prototype. Reduce scope rather than skip validation.
+
+| Milestone | Deliverable | Exit condition |
 | --- | --- | --- |
-| 1 — Foundation | Repository structure, local PostgreSQL, ER model, migrations, FastAPI contract, UI sketches, authentication skeleton | Everyone can run the same seeded database; agree on money representation and balance signs. |
-| 2 — First complete flow | Login, groups/membership, equal-split expense creation, ledger posting, balances | Browser-created expense is persisted and produces correct SQL balances. |
-| 3 — Financial rules | Percentage/exact splits, settlements, debt suggestions, idempotency, transaction locks | Invalid payments fail; parallel payment attempts cannot over-settle. |
-| 4 — Audit and reporting | Corrections, paginated history, monthly SQL reports, CSV and charts | Reversal preserves history; reports reconcile with ledger balances. |
-| 5 — Integration and evidence | Browser flows, authorization tests, rollback tests, query-plan measurements, responsive/error states | Required tests pass; index evidence and concurrency transcript are reproducible. |
-| 6 — Submission | Setup instructions, final diagrams, backup/restore demo, report, presentation, recorded walkthrough | A teammate starts from a clean checkout and completes the demo without manual database edits. |
+| 0 — Feasibility/contracts | Kotlin proof of concept; execute SQL baseline; mobile/API scaffold | Support matrix/go-no-go recorded; migrations apply; identity, bridge, local queue, and financial contracts agreed. |
+| 1 — Manual vertical slice | Accounts, groups, equal-split expense, balances | A phone-created expense persists and reconciles without capture permission. |
+| 2 — Financial core | Percentage/exact splits, settlements, debt plan, replay, corrections/history | Real PostgreSQL race, rollback, retry, and authorization tests pass. |
+| 3 — Signature capture | Active mode, listener, private inbox, review, deduplication | Supported signals become private drafts; only deliberate confirmation posts. |
+| 4 — Daily usability | Weighted shares/presets, offline sync, explanations, reports/CSV, closeout | Restart/reconnect does not duplicate writes; exports reconcile; new migrations are tested. |
+| 5 — Pilot/submission | Device/accessibility checks, performance evidence, restore demo, privacy/release checklist | Reproducible clean start, measured limitations, mobile demo, and agreed release scope. |
 
-Integrate at least twice per week. Finish one working browser-to-database flow before expanding screens. Reserve week 6 for stabilization, not new features.
+Integrate twice weekly; native capture and core-app work can run in parallel. Freeze new features before final validation. Defer optional charts/polish first if time is short.
 
-## Required validation
+## Required validation and research
 
-- Unit tests: split allocation, deterministic rounding, percentage totals, exact totals, net-balance signs, and debt-plan conservation.
-- Database tests against PostgreSQL: keys/constraints, cross-group references, atomic posting, zero-sum entries, immutable rows, and rollback on an injected failure.
-- Concurrent connections: two ₹400 settlements against a ₹500 debt; only one succeeds. Two corrections to one expense; only one reversal succeeds. Two identical idempotency keys; only one operation is recorded.
-- Integration tests: authentication, role checks, unauthorized group IDs, request validation, stale settlement suggestions, and reversal after an earlier settlement.
-- Browser tests: create group → add three members → record expense → see balance → settle → inspect history → export report.
-- Reporting tests: month boundaries, zero-activity month, category totals, late correction of an earlier month, and settlement exclusion from spending.
-- Performance evidence: seed at least 10,000 history records and capture `EXPLAIN (ANALYZE, BUFFERS)` before/after proposed indexes. Report observed results; do not assume every index improves every query.
+- Unit: equal/percentage/exact/weighted allocation, deterministic rounding, preset validation, balance signs, and debt conservation.
+- PostgreSQL: keys/group scope, amount checks, zero-sum entries, immutability, atomic correction, injected rollback, and restricted runtime grants.
+- Concurrent connections: two ₹400 settlements against ₹500 owed; two corrections to one event; identical request keys. Assert one allowed result without duplicate events.
+- API: session expiry/revocation, group authorization, recovery/deletion, join-code abuse, archival, pagination/search, stale suggestions, and sanitized errors.
+- Android: consent, denied/revoked permissions, prompt denial, expiry, group/account switching, restart/background behavior, repeated updates, incoming/failed/pending signals, and privacy-safe prompts.
+- Offline: lost response after commit, repeated confirmation, reconnect/restart, account isolation, validation conflict, and no unreviewed financial writes.
+- Mobile journey: create group → join members → manual expense → capture review → balances → settle → correction/history → export → closeout.
+- Reports: month boundaries, zero activity, late corrections, category reconciliation, settlement separation, CSV formula/quoting safety, and exclusion of local drafts.
+- Performance: at least 10,000 seeded history events; query plans, environment/workload, latency percentiles, lock waits, and actual observed results. Capture PostgreSQL backup/restore counts and zero-sum checks.
+
+Research question: **How can noisy repeated payment signals and unreliable mobile networks produce correctly attributed shared expenses without duplicate financial postings?** Report precision/recall on labelled eligible fixtures, misses, duplicate-suggestion rate, confirmation effort, and financial duplicate events separately. Synthetic fixtures prove parser behavior, not live device coverage. Do not equate notification detection with bank verification or promise an improvement before measurement.
 
 ## Demonstration dataset
 
-A, B, and C each owe ₹1,000. Record A’s ₹1,500 expense with equal shares of ₹500. For B’s ₹500 expense, use exact shares A ₹166.66, B ₹166.67, C ₹166.67. For C’s ₹1,000 expense, use exact shares A ₹333.34, B ₹333.33, C ₹333.33. Each member’s combined allocation is exactly ₹1,000. Exact shares in this fixture reproduce the requested example without cumulative equal-split rounding differences. Balances are A +₹500, B −₹500, C ₹0. The suggestion is B pays A ₹500. Record that settlement and show all balances at zero.
+Create financial examples through posting APIs/functions, not direct ledger inserts. A pays ₹1,500 with ₹500 per member; B pays ₹500 with exact shares A ₹166.66, B ₹166.67, C ₹166.67; C pays ₹1,000 with exact shares A ₹333.34, B ₹333.33, C ₹333.33. Balances: A +₹500, B −₹500, C ₹0; B pays A ₹500 to clear them. This data is not in the current seed.
 
-Also demonstrate a rejected overpayment, concurrent settlement requests, an expense correction with retained history, and a monthly report.
+Also demonstrate repeated capture, personal dismissal, lost-response replay, overpayment rejection, concurrent settlements, retained corrections, and monthly export. Use sanitized notifications in presentations.
 
-## DBMS syllabus evidence
+## Later releases and exclusions
 
-| Concept | Implementation and submission evidence |
-| --- | --- |
-| ER design | Users, memberships, expense participants, events, and ledger relationships with cardinalities. |
-| Normalization | Separate identity, group membership, expense metadata, shares, and ledger entries; explain intentional audit projections. |
-| Complex SQL | CTEs, grouped sums, conditional aggregates, joins, monthly windows, and running balances. |
-| Transactions / ACID | Atomic expense posting and settlement, injected rollback, committed data surviving restart. |
-| Concurrency | Shared group-row lock protocol and two-session race demonstrations. |
-| Indexing | Keyset history index, ledger lookup index, measured query plans. |
-| Constraints | Membership foreign keys, amount checks, unique reversal/idempotency keys, deferred cross-row checks. |
-| Distributed / NoSQL | Optional discussion of future replication or analytics; outside the implementation scope. |
+Later: receipt itemization; reviewed screenshot OCR/import; recurring expenses; recipient acknowledgement distinct from bank verification; configurable reminders; iOS with user-initiated sharing/import. Scope separately after the Android pilot.
 
-## Risks and completion definition
+Exclude initial multi-currency, payment execution/guarantees, universal UPI detection, banking credentials, distributed databases, and automatic debt creation from notifications.
 
-Money and concurrency bugs have priority over visual extras. Lock contention is acceptable for small groups; document the per-group serialization tradeoff. Freeze financial contracts in week 1 and review every schema change together. If time slips, reduce charts and visual polish while retaining all core financial rules.
+## Completion definition
 
-Complete means all scoped features work, migrations and seeds run on a fresh database, financial invariants pass, the team has reproducible DBMS evidence, and setup/demo documentation matches the delivered application. These documents describe intended work, not an already implemented system.
+The manual Android app works independently of capture; accepted sources have measured support and privacy controls; posting/retries preserve financial invariants; setup, migrations, tests, backup/restore, release disclosures, and demo match delivered behavior. Planned features remain marked planned.

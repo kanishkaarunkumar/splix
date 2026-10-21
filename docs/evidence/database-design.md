@@ -1,5 +1,9 @@
 # Database design evidence
 
+## Scope of this evidence
+
+This describes the existing financial SQL foundation for Splix, not executed test evidence or the entire planned mobile schema. Sessions, weighted-share/preset metadata, expense notes, joins, archival, and linked atomic replacement corrections need new migrations. Account-scoped capture settings, private drafts, and the offline queue belong in device-local storage, not PostgreSQL; only user-confirmed financial requests reach this ledger. See [ARCHITECTURE.md](../../ARCHITECTURE.md) for the revised boundaries.
+
 ## Entity relationships
 
 The ERD is in [ARCHITECTURE.md](../../ARCHITECTURE.md). Identity (`users`), group membership, event metadata, expense/settlement details, participant shares, and ledger entries have separate responsibilities. The composite group keys on financial children ensure that an event, payer, participant, settlement endpoint, actor, and ledger member all belong to the same group.
