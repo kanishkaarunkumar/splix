@@ -12,15 +12,15 @@ Android-first replaces the browser-first plan. Only SQL/documentation currently 
 | Local storage | SQLite behind a shared native/JS repository contract | Private account-scoped drafts, active settings, source deduplication, durable mutations. Prototype one compatible access/migration approach; avoid competing schemas/connections. |
 | Credentials | Android Keystore-backed secure storage | Opaque session credentials, never plain SQLite or AsyncStorage. |
 | Prompts | Android local notifications plus in-app inbox | Permission-aware review prompts, generic lock-screen text, inbox fallback; no push service required. |
-| API | Node.js 24 baseline, Express 5, TypeScript | Identity, authorization, groups, financial services, presets, reporting/CSV. Verify versions during setup. |
-| Validation | Zod/shared DTOs | Request validation, safe serialization, native bridge contracts. |
+| API | Python 3.12+, FastAPI, Pydantic | Identity, authorization, groups, financial services, presets, reporting/CSV, and generated OpenAPI. |
+| Validation | Pydantic request models and shared JSON contracts | Request validation, safe serialization, native bridge contracts. |
 | Database | PostgreSQL 18 baseline, explicit SQL via `pg` | Constraints, ledger, transactions, locks, reporting, indexes. |
 | Migrations | Numbered SQL plus a runner selected during setup | Apply existing `001` unchanged; add ordered migrations for product extensions. |
 | Auth | Argon2id and revocable server-side opaque sessions | Mobile bearer credential over HTTPS, expiry, recovery, logout/revocation; not browser-cookie-only auth. |
 | Export | API-generated CSV plus mobile file/share flow | Report parity and spreadsheet-formula-safe text. |
-| Tests | Vitest, Supertest, Android JUnit/instrumentation, Maestro | Money/API/database tests, Kotlin parser/listener tests, mobile journeys. |
-| Environment | Docker Compose PostgreSQL, npm workspaces, Android Studio SDK/emulator/device | Reproducible API/database setup and native builds. |
-| Quality | TypeScript, ESLint, Prettier, Android lint, CI | Pin compatible tooling; fresh-database tests and bounded emulator smoke checks. |
+| Tests | pytest, HTTPX, Android JUnit/instrumentation, Maestro | Money/API/database tests, Kotlin parser/listener tests, mobile journeys. |
+| Environment | Docker Compose PostgreSQL, Python virtual environment, Android Studio SDK/emulator/device | Reproducible API/database setup and native builds. |
+| Quality | Ruff, mypy, Android lint, CI | Pin compatible tooling; fresh-database tests and bounded emulator smoke checks. |
 
 A custom native build is required; a generic preview app is not the capture implementation. iOS is a later client with user-initiated sharing/import, not equivalent notification monitoring. A web app is not an initial deliverable.
 
@@ -42,11 +42,12 @@ apps/
   mobile/
     src/                 # Screens, local repositories, queue, navigation, API client
     android/             # Kotlin listener, bridge, persistence, permissions
-  api/src/
-    routes/              # DTO/session/group authorization
-    services/            # Auth, financial posting/replay, presets, reporting
-    repositories/        # Parameterized SQL
-    db/                  # Pool and transaction helpers
+  api/app/
+    main.py              # FastAPI routes and auth/session boundary
+    domain/               # Allocation rules and domain errors
+    service.py            # Financial workflows, replay, presets, reporting
+    repositories/         # Parameterized SQL
+    db/                   # Pool and transaction helpers
 packages/
   contracts/             # DTOs, errors, native bridge types
   money/                 # Pure allocation and balance utilities
@@ -59,7 +60,7 @@ Keep existing `db/` and `docs/evidence/`. Add Compose, `.env.example`, lockfile,
 
 ## Development and delivery
 
-Planned scripts: `dev:api`, `start:mobile`, `android`, `build:api`, `build:android`, `typecheck`, `lint`, `test`, `test:integration`, `test:mobile`, `db:migrate`, `db:seed`. None exists yet. Document JDK/SDK/device setup. An emulator is not proof of real payment-app support.
+Planned scripts: `uv run uvicorn app.main:app --reload`, `start:mobile`, `android`, `pytest`, `pytest tests/database`, `ruff check`, `db:migrate`, and `db:seed`. Document JDK/SDK/device setup. An emulator is not proof of real payment-app support.
 
 Configure database/session/recovery/API/deep-link settings through environment variables. A physical phone needs a reachable HTTPS API; its `localhost` is not the development host. PostgreSQL is private to the API. Use separate migration/runtime roles, deliberate controlled grants, fresh CI databases, persistent storage, tested restore, and signing keys outside Git.
 

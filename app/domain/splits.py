@@ -27,3 +27,14 @@ def exact_split(total: int, shares: list[Share]) -> list[Share]:
     if len({s.user_id for s in shares}) != len(shares) or any(s.amount_paise < 0 for s in shares): raise DomainError("INVALID_SPLIT", "Exact shares must be unique and nonnegative.")
     if sum(s.amount_paise for s in shares) != total: raise DomainError("INVALID_SPLIT", "Exact shares must total the expense amount.")
     return sorted(shares, key=lambda s: s.user_id)
+
+def weighted_split(total: int, weights: list[tuple[str, int]]) -> list[Share]:
+    _valid(total, len(weights)); users = sorted(weights)
+    if len({u for u, _ in users}) != len(users) or any(w <= 0 for _, w in users):
+        raise DomainError("INVALID_SPLIT", "Weights must be unique positive integers.")
+    denominator = sum(w for _, w in users)
+    rows = [(u, total * w // denominator, total * w % denominator) for u, w in users]
+    left = total - sum(a for _, a, _ in rows)
+    rows.sort(key=lambda row: (-row[2], row[0]))
+    rows = [(u, a + (i < left), f) for i, (u, a, f) in enumerate(rows)]
+    return [Share(u, a) for u, a, _ in sorted(rows)]

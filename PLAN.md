@@ -12,8 +12,8 @@ See [architecture](ARCHITECTURE.md), [technology choices](TECH_STACK.md), [remai
 
 - Existing source: financial-schema migration; expense/settlement/reversal functions; immutable-ledger guards; balance/report SQL; seed categories, users, group, and memberships.
 - Not verified: migration execution, database integration/concurrency tests, query-plan measurements, and backup/restore. Written SQL is not runtime evidence.
-- Missing: mobile app, native capture, API/authentication, split-allocation utilities, offline queue, actual CSV generation, and automated tests.
-- Partial foundations: idempotency storage exists without replay behavior; reversals exist without an atomic linked replacement workflow. Weighted splits, notes, presets, sessions, join codes, and group archival need schema extensions. The seed contains placeholder password hashes and no financial events.
+- Missing: mobile app, native capture, offline queue, and production PostgreSQL wiring. The FastAPI branch now provides the Person 2 API/authentication, split-allocation utilities, replay behavior, reports/CSV, groups, presets, and correction endpoints.
+- Partial foundations: database-backed transactions, schema extensions, and real-connection API/concurrency evidence still need integration with Person 1's SQL. The seed contains placeholder password hashes and no financial events.
 
 Everything below is planned unless explicitly identified as existing SQL. Do not mark documentation as implementation.
 

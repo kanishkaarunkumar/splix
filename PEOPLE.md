@@ -29,6 +29,8 @@ Person 1 takes native capture because financial SQL is already written. Person 2
 
 ## Person 2 — Remaining checklist
 
+The `person-2-api-updated` branch contains the FastAPI service foundation for authentication/recovery, revocable sessions, group lifecycle, join codes, allocations, presets, expenses, settlements, corrections, replay protection, history/explanations, debt suggestions, monthly JSON/CSV, and OpenAPI routes. PostgreSQL repository wiring and real-connection evidence remain integration work with Person 1.
+
 - [ ] Scaffold API/contracts/CI and single-connection transaction helper.
 - [ ] Implement Argon2id auth, revocable mobile sessions, recovery, logout, and agreed deletion/retained-history workflow.
 - [ ] Implement authorized groups, owner-approved expiring/revocable joins, membership, and archival.
