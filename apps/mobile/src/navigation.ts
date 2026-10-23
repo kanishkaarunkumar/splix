@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { randomUUID } from "expo-crypto";
 import type { Expense, FinancialEvent } from "./core/types";
 export type Routes = {
-  Home: undefined;
+  Home: { tab?: "groups" | "overview" } | undefined;
   Group: { groupId: string };
   Expense: {
     groupId: string;

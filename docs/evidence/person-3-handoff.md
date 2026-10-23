@@ -43,3 +43,9 @@ The local Expo Android module compiles Person 1's capture source directly; there
 ## Visual revision — October 23, 2026
 
 The user-supplied colourful rounded-square reference replaces the earlier Bastion/Wenvy styling. The current theme uses deep brown framing, cream cards, teal/coral/pink/yellow blocks, rounded-square buttons, inputs and avatars, DM Sans lettering and IBM Plex Mono headings. Sign-in adapts from a two-panel desktop layout to stacked mobile panels. The dashboard uses coloured action and group tiles. Shared native controls carry the theme through all financial and review screens. Bastion remains an initial component-pattern reference and retains attribution; its visual theme is no longer used.
+
+The follow-up visual adjustment uses orange across the shared page, navigation header, loading and footer surfaces, with teal primary buttons. Every shared card gets a subtle 3px lift and shadow on pointer hover; touch input does not trigger hover, and the shared reduced-motion preference suppresses positional motion.
+
+The home navigation now has Groups, Overview, Inbox and You dock tabs. A read-only overview groups deterministic settlement suggestions by person across the account’s groups, retaining separate owed/receivable amounts and group drill-down. It uses confirmed balances, not local pending writes, and displays cache freshness / incomplete coverage. Home loads group balances in batches of four; existing server endpoints are unchanged.
+
+Follow-up verification passed: TypeScript, zero-warning Expo lint, 12 mobile core tests, and three Chromium journeys covering the full financial flow, dock navigation, three-group person totals, orange/teal colours, hover and reduced motion. Web and Android Hermes production exports passed; the Android export does not replace the outstanding native/device checks above.

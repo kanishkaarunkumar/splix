@@ -1,5 +1,11 @@
 # Using Splix on Android
 
+## Home dock and overview
+
+The fixed home dock has Groups, Overview, Inbox and You tabs. Groups shows confirmed totals to pay / receive and an individual balance on each group card. Overview combines suggested counterparties across groups, lists the contributing groups, and lets you open each group to settle there. Owed and receivable amounts remain separate; a payment in one group never silently settles another. The person plan is calculated from the same net balances used by server settlement suggestions.
+
+Home loads balances for every current group, with at most four balance requests in flight. Cached offline figures show their update time and missing-group coverage. Private drafts and pending writes stay out of the totals. Refresh groups / Refresh overview fetches current balances. The orange background, teal primary buttons, rounded cards and pointer-hover feedback are shared across the app; reduced motion disables card lift.
+
 ## A manual split
 
 Create an account, create a group, and open People & invites. The owner shares an expiring join code. Other accounts request to join; the owner approves them. Groups support up to 50 members.

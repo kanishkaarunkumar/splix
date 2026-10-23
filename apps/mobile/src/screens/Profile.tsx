@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { HomeDock } from "../components/HomeDock";
 import { useStore } from "../core/store";
 import { repository } from "../core/repository";
 import {
@@ -32,7 +33,11 @@ export function ProfileScreen() {
   }
   const pending = local.queue.filter((x) => x.state !== "posted").length;
   return (
-    <Page title="Your corner." subtitle={session?.email}>
+    <Page
+      title="Your corner."
+      subtitle={session?.email}
+      footer={<HomeDock active="you" />}
+    >
       <Card>
         <Field
           label="Your name"

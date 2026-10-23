@@ -105,6 +105,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const result = await api.request<Group[]>("/api/v1/groups");
       if (sessionRef.current?.id !== current.id) return;
       setGroups(result);
+      // Fetch at most four group balances at once; the home overview works before opening a group.
+      const fetched: {
+        group: Group;
+        balances: Balance[];
+        fetchedAt: number;
+      }[] = [];
+      for (let index = 0; index < result.length; index += 4) {
+        const batch = await Promise.all(
+          result.slice(index, index + 4).map(async (group) => ({
+            group,
+            balances: await api.request<Balance[]>(
+              `/api/v1/groups/${group.id}/balances`,
+            ),
+            fetchedAt: Date.now(),
+          })),
+        );
+        fetched.push(...batch);
+      }
+      if (sessionRef.current?.id !== current.id) return;
+      await repository.update(current.id, (state) => {
+        for (const value of fetched)
+          state.snapshots[value.group.id] = {
+            ...value,
+            history: state.snapshots[value.group.id]?.history || [],
+          };
+      });
+      await reloadLocal();
       setOffline(false);
       setMessage("");
     } catch (error) {
@@ -117,7 +144,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         "You’re offline. Saved groups are available; confirmed writes will wait on this device.",
       );
     }
-  }, [api, expire]);
+  }, [api, expire, reloadLocal]);
   const refreshGroup = useCallback(
     async (groupId: string) => {
       const current = sessionRef.current;

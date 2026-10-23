@@ -51,6 +51,27 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
     path: "test-results/home-mobile.png",
     fullPage: true,
   });
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Your overview." }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Inbox", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Just between us." }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "You", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Your corner." }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Groups", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Hello, Alex." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Active mode", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Pay, then decide." }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: /, back$/ }).click();
   await page.getByRole("button", { name: "Create your first group" }).click();
   await page
     .getByRole("textbox", { name: "Group name", exact: true })
@@ -189,4 +210,130 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
     .click();
   await expect(page.getByText("Archived", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("orange pages, teal buttons and shared card hover respect reduced motion", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Welcome back." }),
+  ).toBeVisible();
+  await expect(page.getByTestId("app-page")).toHaveCSS(
+    "background-color",
+    "rgb(250, 117, 89)",
+  );
+  await page
+    .getByRole("textbox", { name: "Email", exact: true })
+    .fill("colour@test.invalid");
+  await page.getByLabel("Password", { exact: true }).fill("password1");
+  await expect(
+    page.getByRole("button", { name: "Sign in", exact: true }),
+  ).toHaveCSS("background-color", "rgb(80, 180, 159)");
+  const card = page.getByTestId("surface-card").first();
+  const y = () =>
+    card.evaluate(
+      (element) =>
+        new DOMMatrixReadOnly(getComputedStyle(element).transform).m42,
+    );
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await card.hover();
+  await expect.poll(y).toBeLessThan(-2.5);
+  await page.mouse.move(1, 1);
+  await expect.poll(y).toBe(0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await card.hover();
+  await expect.poll(y).toBe(0);
+});
+
+test("overview combines the same person across groups without netting separate debts", async ({
+  page,
+  request,
+}) => {
+  const suffix = String(Date.now());
+  const account = async (name: string) => {
+    const response = await request.post(
+      "http://127.0.0.1:8000/api/v1/auth/register",
+      {
+        data: {
+          displayName: name,
+          email: `${name.toLowerCase()}-${suffix}@example.com`,
+          password: "password1",
+        },
+      },
+    );
+    expect(response.ok()).toBeTruthy();
+    return response.json();
+  };
+  const alex = await account("Alex"),
+    sam = await account("Sam");
+  const headers = { Authorization: `Bearer ${sam.sessionToken}` };
+  for (const [name, payer, amount] of [
+    ["Trip", sam.id, "20000"],
+    ["Flat", sam.id, "10000"],
+    ["Lunch", alex.id, "6000"],
+  ]) {
+    const response = await request.post("http://127.0.0.1:8000/api/v1/groups", {
+      headers,
+      data: { name },
+    });
+    const group = await response.json();
+    expect(
+      (
+        await request.post(
+          `http://127.0.0.1:8000/api/v1/groups/${group.id}/members`,
+          { headers, data: { email: alex.email } },
+        )
+      ).ok(),
+    ).toBeTruthy();
+    expect(
+      (
+        await request.post(
+          `http://127.0.0.1:8000/api/v1/groups/${group.id}/expenses`,
+          {
+            headers: { ...headers, "Idempotency-Key": `${name}-${suffix}` },
+            data: {
+              title: name,
+              category: "Food",
+              amountPaise: amount,
+              payerId: payer,
+              effectiveDate: "2026-10-23",
+              splitMethod: "equal",
+              participantIds: [alex.id, sam.id],
+            },
+          },
+        )
+      ).ok(),
+    ).toBeTruthy();
+  }
+  await page.goto("/");
+  await page
+    .getByRole("textbox", { name: "Email", exact: true })
+    .fill(alex.email);
+  await page.getByLabel("Password", { exact: true }).fill("password1");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByText("You owe ₹100.00 to Sam", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
+  const payable = page.getByTestId(`person-owe-${sam.id}`),
+    receivable = page.getByTestId(`person-receive-${sam.id}`);
+  await expect(payable.getByText("₹150.00", { exact: true })).toBeVisible();
+  await expect(
+    payable.getByText("2 shared groups", { exact: true }),
+  ).toBeVisible();
+  await expect(receivable.getByText("₹30.00", { exact: true })).toBeVisible();
+  await page.screenshot({
+    path: "test-results/overview-mobile.png",
+    fullPage: true,
+  });
+  await payable
+    .getByRole("button", { name: "Open Trip from overview" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Trip", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId("app-page").filter({ visible: true }).last(),
+  ).toHaveCSS("background-color", "rgb(250, 117, 89)");
 });

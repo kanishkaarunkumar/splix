@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { captureSources, captureStatus, nativeCapture } from "../core/capture";
+import { HomeDock } from "../components/HomeDock";
 import { useStore } from "../core/store";
 import type { CaptureDraft } from "../core/types";
 import type { ScreenProps } from "../navigation";
@@ -272,6 +273,7 @@ export function InboxScreen({ route, navigation }: ScreenProps<"Inbox">) {
     <Page
       title="Just between us."
       subtitle="Your private suggestions · this device only."
+      footer={<HomeDock active="inbox" />}
     >
       <Txt muted>
         Opening a suggestion never posts it. Review the amount and group, then

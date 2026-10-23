@@ -1,7 +1,16 @@
 // Native controls with Splix's rounded-square, colour-block visual system.
-import React, { createContext, useContext, type ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +24,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 export const c = {
   ink: "#302427",
+  background: "#FA7559",
   panel: "#F7F5D8",
   soft: "#EEECD3",
   paper: "#F7F5D8",
@@ -44,7 +54,8 @@ const toneColor: Record<Tone, string> = {
   yellow: c.yellow,
   dark: c.ink,
 };
-const Surface = createContext({ text: c.paper, muted: c.dim, dark: true });
+export const CardMotionContext = createContext(true);
+const Surface = createContext({ text: c.ink, muted: "#442D29", dark: false });
 export function Txt({
   children,
   muted = false,
@@ -116,6 +127,20 @@ export function Card({
   style?: StyleProp<ViewStyle>;
   tone?: Tone;
 }) {
+  const reduced = useContext(CardMotionContext);
+  const [hover] = useState(() => new Animated.Value(0));
+  const [hovered, setHovered] = useState(false);
+  useEffect(() => () => hover.stopAnimation(), [hover]);
+  function highlight(active: boolean) {
+    setHovered(active);
+    hover.stopAnimation();
+    Animated.timing(hover, {
+      toValue: active && !reduced ? 1 : 0,
+      duration: reduced ? 0 : 150,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: Platform.OS !== "web",
+    }).start();
+  }
   return (
     <Surface.Provider
       value={{
@@ -124,9 +149,36 @@ export function Card({
         dark: tone === "dark",
       }}
     >
-      <View style={[s.card, { backgroundColor: toneColor[tone] }, style]}>
+      <Animated.View
+        testID="surface-card"
+        onPointerEnter={(event) => {
+          if (event.nativeEvent.pointerType !== "touch") highlight(true);
+        }}
+        onPointerLeave={() => highlight(false)}
+        onPointerCancel={() => highlight(false)}
+        style={[
+          s.card,
+          { backgroundColor: toneColor[tone] },
+          style,
+          {
+            transform: [
+              {
+                translateY: reduced
+                  ? 0
+                  : hover.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -3],
+                    }),
+              },
+            ],
+            boxShadow: hovered
+              ? "0px 9px 22px rgba(48, 36, 39, 0.16)"
+              : "0px 0px 0px rgba(48, 36, 39, 0)",
+          },
+        ]}
+      >
         {children}
-      </View>
+      </Animated.View>
     </Surface.Provider>
   );
 }
@@ -470,8 +522,9 @@ export function Page({
 }) {
   return (
     <SafeAreaView
+      testID="app-page"
       edges={["bottom", "left", "right"]}
-      style={{ flex: 1, backgroundColor: c.ink }}
+      style={{ flex: 1, backgroundColor: c.background }}
     >
       <ScrollView
         keyboardShouldPersistTaps="handled"
@@ -526,8 +579,8 @@ export const s = StyleSheet.create({
     paddingVertical: 13,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: c.coral,
-    borderColor: c.coral,
+    backgroundColor: c.teal,
+    borderColor: c.teal,
     borderWidth: 1,
     flexDirection: "row",
     gap: 8,
@@ -589,5 +642,5 @@ export const s = StyleSheet.create({
     alignSelf: "flex-start",
   },
   error: { backgroundColor: "#F8D9CE", borderRadius: 16, padding: 16 },
-  footer: { padding: 14, backgroundColor: c.ink, gap: 8 },
+  footer: { padding: 14, backgroundColor: c.background, gap: 8 },
 });
