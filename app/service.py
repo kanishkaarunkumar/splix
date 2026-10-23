@@ -13,6 +13,7 @@ from threading import RLock
 from argon2 import PasswordHasher
 
 from .domain.errors import DomainError
+from .domain.expenses import prepare_expense
 from .domain.splits import Share, equal_split, exact_split, percentage_split, weighted_split
 
 
@@ -78,6 +79,8 @@ class Event:
 
 
 class AppService:
+    storage = "memory"
+
     def __init__(self):
         self.lock = RLock()
         self.join_requests = {}
@@ -97,6 +100,30 @@ class AppService:
 
     def _public(self, user):
         return {"id": user.id, "email": user.email, "displayName": user.display_name}
+
+    def get_profile(self, actor):
+        return self._public(self.users[actor])
+
+    def list_groups(self, actor):
+        return [self.group_view(g) for g in self.groups.values() if actor in g.member_ids]
+
+    @atomic
+    def register_session(self, email, display_name, password):
+        user = self.register(email, display_name, password)
+        return user | {"sessionToken": self.issue_session(user["id"])}
+
+    @atomic
+    def login(self, email, password):
+        user = self.authenticate(email, password)
+        return user | {"sessionToken": self.issue_session(user["id"])}
+
+    def health(self):
+        return {
+            "status": "ok",
+            "storage": self.storage,
+            "persistent": False,
+            "productionReady": False,
+        }
 
     @atomic
     def register(self, email, display_name, password):
@@ -372,52 +399,7 @@ class AppService:
             if group.archived:
                 raise DomainError("CONFLICT", "Archived groups cannot accept financial writes.")
             self._validate_financial(data)
-            amount = int(data["amountPaise"])
-            self._member(group, data["payerId"])
-            method = data.get("splitMethod")
-            if method not in ("equal", "percentage", "weighted", "exact"):
-                raise DomainError("INVALID_SPLIT", "Choose a supported split method.")
-            if not str(data.get("title", "")).strip() or len(data["title"]) > 120:
-                raise DomainError(
-                    "INVALID_INPUT", "Expense title must contain 1 to 120 characters."
-                )
-            if len(str(data.get("note", ""))) > 1000:
-                raise DomainError("INVALID_INPUT", "Note must be at most 1000 characters.")
-            field = {
-                "equal": "participantIds",
-                "percentage": "percentages",
-                "weighted": "weights",
-                "exact": "shares",
-            }[method]
-            ids = (
-                data.get(field, [])
-                if method == "equal"
-                else [x["userId"] for x in data.get(field, [])]
-            )
-            for x in data.get("percentages", []) + data.get("weights", []):
-                value = x.get("basisPoints", x.get("weight"))
-                if type(value) is not int:
-                    raise DomainError("INVALID_SPLIT", "Weights and basis points must be integers.")
-            for x in data.get("shares", []):
-                if not re.fullmatch(r"[0-9]+", str(x.get("amountPaise", ""))):
-                    raise DomainError("INVALID_SPLIT", "Shares must be integer paise.")
-            for i in ids:
-                self._member(group, i)
-            if data["splitMethod"] == "equal":
-                shares = equal_split(amount, ids)
-            elif data["splitMethod"] == "percentage":
-                shares = percentage_split(
-                    amount, [(x["userId"], x["basisPoints"]) for x in data.get("percentages", [])]
-                )
-            elif data["splitMethod"] == "weighted":
-                shares = weighted_split(
-                    amount, [(x["userId"], x["weight"]) for x in data.get("weights", [])]
-                )
-            else:
-                shares = exact_split(
-                    amount,
-                    [Share(x["userId"], int(x["amountPaise"])) for x in data.get("shares", [])],
-                )
+            amount, shares = prepare_expense(group.member_ids, data)
             event = Event(
                 self._id(),
                 group_id,
@@ -549,6 +531,15 @@ class AppService:
         return [
             e for e in self.history(actor, group_id) if not query or query.lower() in str(e).lower()
         ][: min(max(limit, 1), 100)]
+
+    def history_page(self, actor, group_id, query="", limit=25, offset=0):
+        rows = [
+            e for e in self.history(actor, group_id) if not query or query.lower() in str(e).lower()
+        ]
+        return {
+            "items": rows[offset : offset + limit],
+            "nextOffset": offset + limit if offset + limit < len(rows) else None,
+        }
 
     @atomic
     def create_preset(

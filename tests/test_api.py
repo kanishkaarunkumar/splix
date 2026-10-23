@@ -13,6 +13,7 @@ from app.service import AppService
 @pytest.fixture()
 def client(monkeypatch):
     monkeypatch.setattr(main, "service", AppService())
+    monkeypatch.setattr(main.app.state, "service", main.service)
     with TestClient(main.app) as client:
         yield client
 

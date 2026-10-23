@@ -13,7 +13,7 @@ The SQL invariant fixture wraps all data in a transaction and rolls it back. The
 
 ## Current evidence status
 
-No database setup or SQL test has been executed in this workspace because Docker, `psql`, `pg_ctl`, and a PostgreSQL service are absent. This runbook and tests are reproducibility artifacts, not claimed execution results. Query plans, restore counts, and observed concurrency outcomes remain pending until run on the team's PostgreSQL host.
+PostgreSQL 18 local database checks and Neon-backed API restart/concurrency tests have now run. See [current setup](../neon-deployment.md) and [verification evidence](person-3-handoff.md). The original PowerShell steps above are retained for SQL-only development; the API deployment uses `python -m app.migrate` and its checksummed journal. Do not mix a manually provisioned schema with a fresh migration journal without reconciling it first.
 
 ## Performance evidence
 

@@ -11,7 +11,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLI
 GRANT SELECT ON users, groups, group_members, categories, financial_events, expenses,
   expense_shares, settlements, ledger_entries, idempotency_requests, sessions,
   group_join_codes, group_join_requests, group_split_presets,
-  group_split_preset_members, group_lifecycle_events, member_balances
+  group_split_preset_members, group_lifecycle_events, member_balances, recovery_tokens
 TO splix_runtime;
 -- Idempotency results are stored in the same service transaction as posting.
 GRANT INSERT, UPDATE ON idempotency_requests TO splix_runtime;
@@ -34,5 +34,13 @@ GRANT EXECUTE ON FUNCTION save_group_split_preset(uuid,uuid,uuid,text,text,jsonb
 GRANT EXECUTE ON FUNCTION delete_group_split_preset(uuid,uuid,uuid) TO splix_runtime;
 GRANT EXECUTE ON FUNCTION archive_group(uuid,uuid) TO splix_runtime;
 GRANT EXECUTE ON FUNCTION reopen_group(uuid,uuid,text) TO splix_runtime;
+GRANT EXECUTE ON FUNCTION lock_splix_user(uuid) TO splix_runtime;
+GRANT EXECUTE ON FUNCTION lock_splix_group(uuid,uuid,boolean) TO splix_runtime;
+GRANT EXECUTE ON FUNCTION update_splix_profile(uuid,text) TO splix_runtime;
+GRANT EXECUTE ON FUNCTION delete_splix_account(uuid,text) TO splix_runtime;
+GRANT EXECUTE ON FUNCTION provision_splix_recovery(uuid,bytea) TO splix_runtime;
+GRANT EXECUTE ON FUNCTION recover_splix_account(bytea,text) TO splix_runtime;
+GRANT EXECUTE ON FUNCTION add_splix_member(uuid,uuid,text) TO splix_runtime;
+GRANT EXECUTE ON FUNCTION splix_category(text) TO splix_runtime;
 
 -- Future routines created by the migration owner must still be explicitly granted.

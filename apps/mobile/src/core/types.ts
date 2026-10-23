@@ -78,6 +78,7 @@ export type CaptureDraft = {
   committedEventId?: string;
 };
 export type CaptureStatus = {
+  sources?: string[];
   available: boolean;
   granted: boolean;
   consent: boolean;

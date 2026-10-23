@@ -1,4 +1,6 @@
 .env
+.env.local
+.env.*.local
 *.dump
 *.backup
 *.apk
@@ -22,3 +24,4 @@ apps/mobile/ios/
 *.egg-info/
 
 .claude/
+.neon

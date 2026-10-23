@@ -1,7 +1,8 @@
 import os
-from typing import Literal
+from contextlib import asynccontextmanager
+from typing import Annotated, Any, Literal
 
-from fastapi import FastAPI, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,17 +10,57 @@ from pydantic import BaseModel, ConfigDict, Field
 from .domain.errors import DomainError
 from .service import AppService
 
-app = FastAPI(title="Splix API", version="1.1.0")
-origins = [
-    value.strip() for value in os.getenv("SPLIX_ALLOWED_ORIGINS", "").split(",") if value.strip()
-]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
-)
-service = AppService()
+router = APIRouter()
+
+
+def get_service(request: Request):
+    return request.app.state.service
+
+
+Service = Annotated[Any, Depends(get_service)]
+
+
+def create_app(database_url=None, service_override=None):
+    dsn = database_url or os.getenv("DATABASE_URL")
+    if service_override is not None:
+        backend = service_override
+    elif dsn:
+        from .postgres import PostgresService
+
+        backend = PostgresService(dsn)
+    elif os.getenv("RENDER") == "true" or os.getenv("SPLIX_REQUIRE_DATABASE") == "1":
+        raise RuntimeError(
+            "DATABASE_URL is required. Configure the PostgreSQL runtime connection before deploying."
+        )
+    else:
+        backend = AppService()
+
+    @asynccontextmanager
+    async def lifespan(application):
+        current = application.state.service
+        if hasattr(current, "open"):
+            current.open()
+        try:
+            yield
+        finally:
+            if hasattr(current, "close"):
+                current.close()
+
+    application = FastAPI(title="Splix API", version="1.2.0", lifespan=lifespan)
+    application.state.service = backend
+    origins = [
+        value.strip()
+        for value in os.getenv("SPLIX_ALLOWED_ORIGINS", "").split(",")
+        if value.strip()
+    ]
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+    )
+    application.include_router(router)
+    return application
 
 
 class Body(BaseModel):
@@ -120,6 +161,7 @@ def safe(call):
             "NOT_FOUND": 404,
             "INVALID_INPUT": 422,
             "INVALID_SPLIT": 422,
+            "UNAVAILABLE": 503,
         }.get(error.code, 409)
         raise HTTPException(
             status, detail={"code": error.code, "message": str(error), "fields": error.fields}
@@ -134,110 +176,111 @@ def bearer(request: Request):
 
 
 def actor(request: Request):
-    return safe(lambda: service.session_user(bearer(request)))
+    return safe(lambda: get_service(request).session_user(bearer(request)))
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "storage": "memory", "productionReady": False}
+@router.get("/health")
+def health(
+    service: Service,
+):
+    return safe(service.health)
 
 
-@app.post("/api/v1/auth/register")
-def register(body: Registration):
-    user = safe(lambda: service.register(body.email, body.displayName, body.password))
-    return user | {"sessionToken": service.issue_session(user["id"])}
+@router.post("/api/v1/auth/register")
+def register(service: Service, body: Registration):
+    return safe(lambda: service.register_session(body.email, body.displayName, body.password))
 
 
-@app.post("/api/v1/auth/login")
-def login(body: Credentials):
-    user = safe(lambda: service.authenticate(body.email, body.password))
-    return user | {"sessionToken": service.issue_session(user["id"])}
+@router.post("/api/v1/auth/login")
+def login(service: Service, body: Credentials):
+    return safe(lambda: service.login(body.email, body.password))
 
 
-@app.post("/api/v1/auth/logout", status_code=204)
-def logout(request: Request):
-    service.revoke_session(bearer(request))
+@router.post("/api/v1/auth/logout", status_code=204)
+def logout(service: Service, request: Request):
+    safe(lambda: service.revoke_session(bearer(request)))
     return Response(status_code=204)
 
 
-@app.post("/api/v1/auth/recovery/request", status_code=202)
-def recovery_request(body: Email):
+@router.post("/api/v1/auth/recovery/request", status_code=202)
+def recovery_request(service: Service, body: Email):
     return service.request_recovery(body.email)
 
 
-@app.post("/api/v1/auth/recovery/confirm")
-def recovery_confirm(body: Recovery):
+@router.post("/api/v1/auth/recovery/confirm")
+def recovery_confirm(service: Service, body: Recovery):
     return safe(lambda: service.recover(body.token, body.password))
 
 
-@app.delete("/api/v1/me")
-def delete_me(request: Request):
+@router.delete("/api/v1/me")
+def delete_me(service: Service, request: Request):
     return safe(lambda: service.delete_account(actor(request)))
 
 
-@app.patch("/api/v1/me")
-def profile(body: Profile, request: Request):
+@router.patch("/api/v1/me")
+def profile(service: Service, body: Profile, request: Request):
     return safe(lambda: service.update_profile(actor(request), body.displayName))
 
 
-@app.get("/api/v1/me")
-def me(request: Request):
-    return service._public(service.users[actor(request)])
+@router.get("/api/v1/me")
+def me(service: Service, request: Request):
+    return safe(lambda: service.get_profile(actor(request)))
 
 
-@app.get("/api/v1/groups")
-def groups(request: Request):
+@router.get("/api/v1/groups")
+def groups(service: Service, request: Request):
     user_id = actor(request)
-    return [service.group_view(g) for g in service.groups.values() if user_id in g.member_ids]
+    return safe(lambda: service.list_groups(user_id))
 
 
-@app.post("/api/v1/groups")
-def create_group(body: Name, request: Request):
+@router.post("/api/v1/groups")
+def create_group(service: Service, body: Name, request: Request):
     return safe(lambda: service.create_group(actor(request), body.name))
 
 
-@app.post("/api/v1/groups/{group_id}/members")
-def add_member(group_id: str, body: Email, request: Request):
+@router.post("/api/v1/groups/{group_id}/members")
+def add_member(service: Service, group_id: str, body: Email, request: Request):
     return safe(lambda: service.add_member(actor(request), group_id, body.email))
 
 
-@app.post("/api/v1/groups/{group_id}/archive")
-def archive(group_id: str, request: Request):
+@router.post("/api/v1/groups/{group_id}/archive")
+def archive(service: Service, group_id: str, request: Request):
     return safe(lambda: service.archive_group(actor(request), group_id))
 
 
-@app.post("/api/v1/groups/{group_id}/join-codes")
-def join_code(group_id: str, request: Request, ttl_seconds: int = 86400):
+@router.post("/api/v1/groups/{group_id}/join-codes")
+def join_code(service: Service, group_id: str, request: Request, ttl_seconds: int = 86400):
     return safe(lambda: service.create_join_code(actor(request), group_id, ttl_seconds))
 
 
-@app.post("/api/v1/groups/join")
-def join(body: Join, request: Request):
+@router.post("/api/v1/groups/join")
+def join(service: Service, body: Join, request: Request):
     return safe(lambda: service.join_group(actor(request), body.code))
 
 
-@app.get("/api/v1/groups/{group_id}/join-requests")
-def join_requests(group_id: str, request: Request):
+@router.get("/api/v1/groups/{group_id}/join-requests")
+def join_requests(service: Service, group_id: str, request: Request):
     return safe(lambda: service.list_join_requests(actor(request), group_id))
 
 
-@app.post("/api/v1/groups/{group_id}/join-requests/{request_id}")
-def decide_join(group_id: str, request_id: str, body: Decision, request: Request):
+@router.post("/api/v1/groups/{group_id}/join-requests/{request_id}")
+def decide_join(service: Service, group_id: str, request_id: str, body: Decision, request: Request):
     return safe(lambda: service.decide_join(actor(request), group_id, request_id, body.approve))
 
 
-@app.post("/api/v1/groups/join-codes/{code}/revoke")
-def revoke_join(code: str, request: Request):
+@router.post("/api/v1/groups/join-codes/{code}/revoke")
+def revoke_join(service: Service, code: str, request: Request):
     return safe(lambda: service.revoke_join_code(actor(request), code))
 
 
-@app.get("/api/v1/groups/{group_id}/balances")
-def balances(group_id: str, request: Request):
+@router.get("/api/v1/groups/{group_id}/balances")
+def balances(service: Service, group_id: str, request: Request):
     return safe(lambda: service.balances(actor(request), group_id))
 
 
-@app.post("/api/v1/groups/{group_id}/expenses")
+@router.post("/api/v1/groups/{group_id}/expenses")
 def expense(
+    service: Service,
     group_id: str,
     body: Expense,
     request: Request,
@@ -250,8 +293,9 @@ def expense(
     )
 
 
-@app.post("/api/v1/groups/{group_id}/settlements")
+@router.post("/api/v1/groups/{group_id}/settlements")
 def settlement(
+    service: Service,
     group_id: str,
     body: Settlement,
     request: Request,
@@ -264,37 +308,34 @@ def settlement(
     )
 
 
-@app.get("/api/v1/groups/{group_id}/settlement-suggestions")
-def suggestions(group_id: str, request: Request):
+@router.get("/api/v1/groups/{group_id}/settlement-suggestions")
+def suggestions(service: Service, group_id: str, request: Request):
     return safe(lambda: service.suggestions(actor(request), group_id))
 
 
-@app.get("/api/v1/groups/{group_id}/history")
-def history(group_id: str, request: Request, q: str = "", limit: int = 25, offset: int = 0):
-    rows = safe(lambda: service.history(actor(request), group_id))
-    filtered = [e for e in rows if not q or q.lower() in str(e).lower()]
+@router.get("/api/v1/groups/{group_id}/history")
+def history(
+    service: Service, group_id: str, request: Request, q: str = "", limit: int = 25, offset: int = 0
+):
     if not 1 <= limit <= 100 or offset < 0:
         raise HTTPException(
             422, detail={"code": "INVALID_INPUT", "message": "Invalid history page."}
         )
-    return {
-        "items": filtered[offset : offset + limit],
-        "nextOffset": offset + limit if offset + limit < len(filtered) else None,
-    }
+    return safe(lambda: service.history_page(actor(request), group_id, q, limit, offset))
 
 
-@app.get("/api/v1/groups/{group_id}/history/search")
-def history_search(group_id: str, request: Request, q: str = "", limit: int = 25):
+@router.get("/api/v1/groups/{group_id}/history/search")
+def history_search(service: Service, group_id: str, request: Request, q: str = "", limit: int = 25):
     return safe(lambda: service.search_history(actor(request), group_id, q, limit))
 
 
-@app.get("/api/v1/groups/{group_id}/explanations")
-def explanations(group_id: str, request: Request, user_id: str | None = None):
+@router.get("/api/v1/groups/{group_id}/explanations")
+def explanations(service: Service, group_id: str, request: Request, user_id: str | None = None):
     return safe(lambda: service.explanation(actor(request), group_id, user_id))
 
 
-@app.post("/api/v1/groups/{group_id}/presets")
-def preset(group_id: str, body: Preset, request: Request):
+@router.post("/api/v1/groups/{group_id}/presets")
+def preset(service: Service, group_id: str, body: Preset, request: Request):
     return safe(
         lambda: service.create_preset(
             actor(request),
@@ -309,14 +350,18 @@ def preset(group_id: str, body: Preset, request: Request):
     )
 
 
-@app.get("/api/v1/groups/{group_id}/presets")
-def presets(group_id: str, request: Request):
+@router.get("/api/v1/groups/{group_id}/presets")
+def presets(service: Service, group_id: str, request: Request):
     return safe(lambda: service.list_presets(actor(request), group_id))
 
 
-@app.get("/api/v1/groups/{group_id}/reports/monthly")
+@router.get("/api/v1/groups/{group_id}/reports/monthly")
 def monthly_report(
-    group_id: str, request: Request, month: str, format: Literal["json", "csv"] = "json"
+    service: Service,
+    group_id: str,
+    request: Request,
+    month: str,
+    format: Literal["json", "csv"] = "json",
 ):
     report = safe(lambda: service.monthly_report(actor(request), group_id, month))
     return (
@@ -330,8 +375,9 @@ def monthly_report(
     )
 
 
-@app.post("/api/v1/groups/{group_id}/expenses/{event_id}/corrections")
+@router.post("/api/v1/groups/{group_id}/expenses/{event_id}/corrections")
 def correction(
+    service: Service,
     group_id: str,
     event_id: str,
     body: Correction,
@@ -348,3 +394,7 @@ def correction(
             idempotency_key,
         )
     )
+
+
+app = create_app()
+service = app.state.service  # Compatibility for local tooling; routes use per-app state.

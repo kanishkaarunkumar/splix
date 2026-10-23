@@ -34,7 +34,7 @@ The local Expo Android module compiles Person 1's capture source directly; there
 
 ## Remaining gates
 
-1. The inherited API is still an in-memory reference adapter. It is not wired to the validated PostgreSQL schema. Server restart loses users, sessions, events and replay results; one-process locking is not a production transaction strategy. Wire a real PostgreSQL repository and transaction-level request replay before pilot/deployment. Health reports `productionReady: false`.
+1. The PostgreSQL adapter and Neon production schema are now implemented and verified (see the Neon integration evidence below). Activation on the existing Render service still requires its prepared database environment and new API deployment. Confirm `storage: postgresql` / `persistent: true` on its live health endpoint before claiming the hosted API uses persistent storage. `productionReady` remains false for the separate release/operations gates.
 2. Trusted recovery-token delivery, abuse throttling and production operational configuration remain server work. Recovery screens and safe token confirmation exist; delivery is not claimed.
 3. A separate workspace SDK resolved the missing system SDK mount; ARM64 APK/Kotlin compilation and four capture-parser unit tests now pass (see APK evidence below). Android instrumentation, screen readers/large text, on-device offline/restart, consent/revocation and live payment-app capture remain unverified. Compilation is not a substitute for device testing.
 4. Capture is a prototype with candidate source packages. No universal coverage, live-device precision/recall, background prompt delivery or Play approval is claimed. Inbox fallback is implemented. Retention duration/automatic expiry, pilot feedback and final privacy/release disclosures still require agreement and validation.
@@ -57,3 +57,22 @@ Built source `9c9c53c` with Java 17, Gradle 9.4.1, Android SDK 37 and NDK 27.1.1
 Artifact: `.dist/apk/splix-test.apk` (37,459,483 bytes), SHA-256 `0a819f080b3415c5590904696d85c64073eabeeed78be2d4e4c987234a9e3543`. APK v2 signature verification, ZIP integrity, embedded Hermes bundle, HTTPS API address, native bridge/listener classes and ARM64 library checks passed. The merged manifest retains disabled backup and the protected notification listener; the hosted build has no local HTTP network-security override.
 
 The APK points to `https://splix-api-test.onrender.com` and needs no laptop connection. HTTPS health, unauthorized-access rejection, temporary registration, authenticated profile/group list, account cleanup and session revocation were checked against that server. The server still reports memory storage and `productionReady: false`; deployment does not resolve the persistence gate above. No physical-device installation or live UPI notification capture is claimed.
+
+
+## Neon integration — October 23, 2026
+
+Installed Neon CLI, ran the requested init against organization `org-autumn-river-45281356`, project `withered-morning-65295379`, branch `production`, and completed browser authentication. `neon deploy` succeeded: `Utilized services: Postgres`, with three managed variables pulled into `.env.local`. Kept existing auth and Python/Psycopg architecture.
+
+Migration 003 adds durable account deletion/recovery and restricted identity/group/category boundaries. The API uses the normalized tables and existing controlled financial posting functions. Connection pooling, consistent read transactions, group serialization, hashed session credentials and atomic request replay replace process memory when configured. SQL pagination bounds history pages; group listing batches member loading. `app.migrate` journals checksums and `npm run db:setup` derives a restricted login without printing or committing credentials.
+
+Executed evidence:
+
+- Local PostgreSQL 18 suite: **30 passed** (API/domain, reports, actual process restart, independent-worker replay and settlement races).
+- The six PostgreSQL API integration tests against isolated Neon branch `splix-persistence-20261023`: **6 passed in 68.71s**. Branch expires after seven days; financial fixtures stay off production.
+- Required **`npm run build` exited 0**, exporting the web app. Started a local HTTP API wired to that Neon branch plus the built frontend. Three Chromium journeys against it: **3 passed in 51.7s**, covering expense/retry/correction/report/settlement/archive, theme interactions and cross-group overview. The first run failed because its locator assumed a 16-character invite code; the backend's 32-character code displayed correctly. Corrected the locator and reran successfully.
+- TypeScript, zero-warning Expo lint, **12 mobile core tests**, Python Ruff lint/format and diff checks passed.
+- Returned Neon context to production and applied all three migrations. A temporary production identity retained its session across application recreation; deleting it revoked the session. No production financial fixture was created.
+
+Pending capture UI source changes clarify granted access, restore saved source/consent selections, and avoid reopening settings when access is already granted. **No APK was rebuilt**, per the user's instruction. Runtime phone capture remains a device-verification gate.
+
+The existing Render service requires the private `.env.api.local` settings and the new API commit. The user selected manual environment import. Neon deployment alone does not update Render; live cutover must be verified separately.

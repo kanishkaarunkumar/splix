@@ -27,8 +27,8 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
   const [status, setStatus] = useState(() => captureStatus(accountId)),
     [selectedGroup, setSelectedGroup] = useState(""),
     [duration, setDuration] = useState("60"),
-    [sources, setSources] = useState<string[]>([]),
-    [agreed, setAgreed] = useState(false),
+    [sources, setSources] = useState<string[]>(status.sources || []),
+    [agreed, setAgreed] = useState(status.consent),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const refresh = useCallback(() => {
@@ -117,10 +117,17 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
           <Badge warning={!status.granted}>
             {!status.granted
               ? "Notification access is off"
-              : status.paused
-                ? "Capture is paused / expired"
-                : "Active on this device"}
+              : "Notification access granted"}
           </Badge>
+          {status.granted && (
+            <Txt>
+              {!status.consent
+                ? "Access is granted. Choose your payment apps and save your consent below."
+                : status.paused
+                  ? "Access and consent are saved. Choose a group below and tap Start active mode to begin."
+                  : "Active mode is running on this device."}
+            </Txt>
+          )}
           {!status.paused && (
             <Card>
               <Txt>
@@ -175,7 +182,7 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
             <Button
               label={
                 status.granted
-                  ? "Update consent & access"
+                  ? "Save payment app choices"
                   : "Agree & open Android settings"
               }
               disabled={!agreed || !sources.length}
@@ -183,9 +190,17 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
                 run(() => nativeCapture!.consent(session!.id, sources))
               }
             />
+            {!status.paused && (
+              <Txt muted>
+                Saving app choices pauses active mode. Start it again below.
+              </Txt>
+            )}
           </Card>
           {status.granted && status.consent && (
             <Card>
+              <Heading small>
+                {status.paused ? "Ready to start" : "Change active group"}
+              </Heading>
               <Choice
                 label="One active group"
                 value={selectedGroup}

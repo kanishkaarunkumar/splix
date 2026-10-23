@@ -2,15 +2,15 @@
 
 ## System boundaries
 
-Use a modular monolith: an Android-first React Native app with a Kotlin capture module, one Express API, and PostgreSQL. The API authenticates users and coordinates workflows; PostgreSQL enforces financial integrity. Payments occur outside Splix. Notifications are untrusted suggestions, not payment verification.
+Use a modular monolith: an Android-first React Native app with a Kotlin capture module, one FastAPI API, and PostgreSQL. The API authenticates users and coordinates workflows; PostgreSQL enforces financial integrity. Payments occur outside Splix. Notifications are untrusted suggestions, not payment verification.
 
-Status as of October 20, 2026: only initial financial SQL and documentation exist. Mobile/native/API code, sessions, local storage, and product extensions below are planned. Database execution and concurrency evidence are pending. Preserve migration `001`; extend through new migrations.
+Status as of October 23, 2026: the Expo/native client and FastAPI PostgreSQL adapter are implemented. Migrations 001–003 provide the ledger, product workflows and identity lifecycle. Local and Neon restart/concurrency tests pass. The sections below retain the original design contract; current implementation/deployment evidence is in [the Neon guide](docs/neon-deployment.md) and [handoff evidence](docs/evidence/person-3-handoff.md). Live-device capture and release gates remain separate.
 
 ```mermaid
 flowchart LR
     N[Allowlisted Android payment notifications] --> K[Kotlin listener and local draft storage]
     K --> U[React Native private inbox and review]
-    U -->|Explicit confirmation: HTTPS JSON and bearer session| A[Express routes and authorization]
+    U -->|Explicit confirmation: HTTPS JSON and bearer session| A[FastAPI routes and authorization]
     A --> S[Expense, settlement, correction services]
     A --> R[History and report services]
     S -->|Parameterized calls in transactions| D[(PostgreSQL)]

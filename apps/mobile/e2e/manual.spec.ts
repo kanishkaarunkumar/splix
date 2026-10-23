@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+const API_URL = process.env.SPLIX_E2E_API_URL || "http://127.0.0.1:8000";
+
 test("mobile manual journey, offline retry, correction, report and closeout", async ({
   page,
   request,
@@ -7,16 +9,13 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const suffix = String(Date.now());
-  const member = await request.post(
-    "http://127.0.0.1:8000/api/v1/auth/register",
-    {
-      data: {
-        email: `member-${suffix}@example.com`,
-        password: "password1",
-        displayName: "Sam",
-      },
+  const member = await request.post(`${API_URL}/api/v1/auth/register`, {
+    data: {
+      email: `member-${suffix}@example.com`,
+      password: "password1",
+      displayName: "Sam",
     },
-  );
+  });
   expect(member.ok()).toBeTruthy();
   const memberData = await member.json();
   await page.goto("/");
@@ -82,12 +81,12 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
   ).toBeVisible();
   await page.getByRole("button", { name: "People & invites" }).click();
   await page.getByRole("button", { name: "Create join code" }).click();
-  const code = await page.getByText(/^[a-f0-9]{16}$/).textContent();
-  const groups = await request.get("http://127.0.0.1:8000/api/v1/groups", {
+  const code = await page.getByText(/^[a-f0-9]{16,64}$/).textContent();
+  const groups = await request.get(`${API_URL}/api/v1/groups`, {
     headers: { Authorization: `Bearer ${memberData.sessionToken}` },
   });
   expect(await groups.json()).toEqual([]);
-  const join = await request.post("http://127.0.0.1:8000/api/v1/groups/join", {
+  const join = await request.post(`${API_URL}/api/v1/groups/join`, {
     headers: { Authorization: `Bearer ${memberData.sessionToken}` },
     data: { code },
   });
@@ -116,7 +115,7 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
   });
   // The native shell is bundled. In the web preview, keep route chunks reachable
   // while simulating loss of the API connection.
-  await page.route("http://127.0.0.1:8000/api/v1/**", (route) =>
+  await page.route(`${API_URL}/api/v1/**`, (route) =>
     route.abort("internetdisconnected"),
   );
   await page
@@ -129,7 +128,7 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
     .getByRole("button", { name: /1 pending · balances exclude/ })
     .click();
   await expect(page.getByText("Pending", { exact: true })).toBeVisible();
-  await page.unroute("http://127.0.0.1:8000/api/v1/**");
+  await page.unroute(`${API_URL}/api/v1/**`);
   await page
     .getByRole("button", { name: "Retry pending writes", exact: true })
     .click();
@@ -252,16 +251,13 @@ test("overview combines the same person across groups without netting separate d
 }) => {
   const suffix = String(Date.now());
   const account = async (name: string) => {
-    const response = await request.post(
-      "http://127.0.0.1:8000/api/v1/auth/register",
-      {
-        data: {
-          displayName: name,
-          email: `${name.toLowerCase()}-${suffix}@example.com`,
-          password: "password1",
-        },
+    const response = await request.post(`${API_URL}/api/v1/auth/register`, {
+      data: {
+        displayName: name,
+        email: `${name.toLowerCase()}-${suffix}@example.com`,
+        password: "password1",
       },
-    );
+    });
     expect(response.ok()).toBeTruthy();
     return response.json();
   };
@@ -273,36 +269,33 @@ test("overview combines the same person across groups without netting separate d
     ["Flat", sam.id, "10000"],
     ["Lunch", alex.id, "6000"],
   ]) {
-    const response = await request.post("http://127.0.0.1:8000/api/v1/groups", {
+    const response = await request.post(`${API_URL}/api/v1/groups`, {
       headers,
       data: { name },
     });
     const group = await response.json();
     expect(
       (
-        await request.post(
-          `http://127.0.0.1:8000/api/v1/groups/${group.id}/members`,
-          { headers, data: { email: alex.email } },
-        )
+        await request.post(`${API_URL}/api/v1/groups/${group.id}/members`, {
+          headers,
+          data: { email: alex.email },
+        })
       ).ok(),
     ).toBeTruthy();
     expect(
       (
-        await request.post(
-          `http://127.0.0.1:8000/api/v1/groups/${group.id}/expenses`,
-          {
-            headers: { ...headers, "Idempotency-Key": `${name}-${suffix}` },
-            data: {
-              title: name,
-              category: "Food",
-              amountPaise: amount,
-              payerId: payer,
-              effectiveDate: "2026-10-23",
-              splitMethod: "equal",
-              participantIds: [alex.id, sam.id],
-            },
+        await request.post(`${API_URL}/api/v1/groups/${group.id}/expenses`, {
+          headers: { ...headers, "Idempotency-Key": `${name}-${suffix}` },
+          data: {
+            title: name,
+            category: "Food",
+            amountPaise: amount,
+            payerId: payer,
+            effectiveDate: "2026-10-23",
+            splitMethod: "equal",
+            participantIds: [alex.id, sam.id],
           },
-        )
+        })
       ).ok(),
     ).toBeTruthy();
   }

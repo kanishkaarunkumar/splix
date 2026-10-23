@@ -4,7 +4,7 @@ export default defineConfig({
   timeout: 60000,
   fullyParallel: false,
   use: {
-    baseURL: "http://127.0.0.1:8081",
+    baseURL: process.env.SPLIX_E2E_PREVIEW_URL || "http://127.0.0.1:8081",
     viewport: { width: 390, height: 844 },
     reducedMotion: "reduce",
     launchOptions: {

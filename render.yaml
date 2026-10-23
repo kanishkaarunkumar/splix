@@ -1,13 +1,18 @@
-# Disposable testing only: the current API uses process-local memory.
-# A service restart (including free-tier sleep) clears all server data.
+# Free API compute; durable PostgreSQL is supplied by Neon via environment secrets.
 services:
   - type: web
     name: splix-api-test
     runtime: python
     plan: free
-    buildCommand: pip install .
+    buildCommand: pip install . && python -m app.migrate
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.12
+      - key: SPLIX_REQUIRE_DATABASE
+        value: "1"
+      - key: MIGRATION_DATABASE_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false

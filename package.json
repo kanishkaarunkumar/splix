@@ -3,6 +3,8 @@
   "private": true,
   "packageManager": "pnpm@10.31.0",
   "scripts": {
+    "db:setup": "uv run python -m app.neon_setup",
+    "api": "uv run --env-file .env.api.local uvicorn app.main:app --host 127.0.0.1 --port 8000",
     "mobile": "pnpm --dir apps/mobile start",
     "android": "pnpm --dir apps/mobile android",
     "web": "pnpm --dir apps/mobile web",
@@ -10,5 +12,9 @@
     "test": "pnpm --dir apps/mobile test",
     "build": "pnpm --dir apps/mobile build:web",
     "lint": "pnpm --dir apps/mobile lint"
+  },
+  "dependencies": {
+    "@neon/config": "^1.9.3",
+    "@neon/env": "^1.6.4"
   }
 }

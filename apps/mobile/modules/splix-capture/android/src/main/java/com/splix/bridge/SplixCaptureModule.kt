@@ -27,8 +27,13 @@ class SplixCaptureModule : Module() {
             val granted = CaptureControl.isAccessGranted(context)
             if (!granted) db.pause(account)
             val active = db.activeCapture()
-            val consent = db.readableDatabase.rawQuery("SELECT consent_at FROM capture_settings WHERE account_id=?", arrayOf(account)).use { it.moveToFirst() }
-            mapOf("available" to true, "granted" to granted, "consent" to consent, "groupId" to active?.groupId,
+            val sources = db.readableDatabase.rawQuery("SELECT allowlist_json FROM capture_settings WHERE account_id=? AND consent_at>0", arrayOf(account)).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val json = JSONArray(cursor.getString(0))
+                    (0 until json.length()).map { json.getString(it) }
+                } else emptyList<String>()
+            }
+            mapOf("available" to true, "granted" to granted, "consent" to sources.isNotEmpty(), "sources" to sources, "groupId" to active?.groupId,
                 "expiresAt" to active?.expiresAtEpochMs, "paused" to (active == null))
         } }
         Function("consent") { account: String, sources: List<String> -> store(account) { db ->

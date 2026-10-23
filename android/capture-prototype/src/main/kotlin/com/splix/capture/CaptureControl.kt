@@ -11,7 +11,9 @@ import android.provider.Settings
 object CaptureControl {
     fun requestAccess(activity: Activity, store: CaptureStore, accountId: String, sources: Set<String>) {
         store.saveConsent(accountId, sources)
-        activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        if (!isAccessGranted(activity)) {
+            activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        }
     }
 
     fun isAccessGranted(context: Context): Boolean {

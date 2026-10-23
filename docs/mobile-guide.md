@@ -2,7 +2,7 @@
 
 ## Build an independent test APK
 
-The repository includes a `render.yaml` Blueprint selecting Render's **free** web-service plan explicitly. In a Render account, create a Blueprint from this repository and verify the service remains on Free. No paid database or disk is included. This hosts the existing **disposable reference API**: sleeping, restarting or redeploying clears all accounts and financial data. Persistent API storage must be implemented before testing with data you need to keep.
+The repository includes a `render.yaml` Blueprint selecting Render's **free** web-service plan explicitly. Configure Neon PostgreSQL first using [the deployment guide](neon-deployment.md), then deploy the API. The database-backed API persists server data across API sleep and restarts. The memory adapter is available only for local reference development.
 
 After deployment, check `https://YOUR-SERVICE.onrender.com/health`. Build with Java 17 and an installed Android SDK:
 
@@ -23,7 +23,7 @@ adb install -r .dist/apk/splix-test.apk
 adb reverse tcp:8000 tcp:8000
 ```
 
-Keep the API running on port 8000. Reapply `adb reverse` after reconnecting/rebooting the phone. The test build permits HTTP only for local development hosts; normal builds retain HTTPS requirements. The current API stores data in memory and loses it on server restart.
+Keep the API running on port 8000. Reapply `adb reverse` after reconnecting/rebooting the phone. The test build permits HTTP only for local development hosts; normal builds retain HTTPS requirements. PostgreSQL-backed API data survives server restart; the optional memory reference adapter does not.
 
 To reproduce this optional local build with Java 17 and an installed Android SDK, set `JAVA_HOME` and `ANDROID_HOME`, then run `SPLIX_LOCAL_ANDROID_TEST=1 EXPO_PUBLIC_API_URL=http://127.0.0.1:8000 bash scripts/build-test-apk.sh`. It writes `.dist/apk/splix-test.apk`. The script generates a release bundle signed with the generated debug key and runs the capture module's unit tests. Real-phone capture still requires testing: sign in, create a group, open Active mode, grant access and activate that group, then check Inbox after a supported payment notification arrives.
 
@@ -43,7 +43,7 @@ Review the split, then confirm. A durable UUID-keyed request is saved before sen
 
 ## Offline and corrections
 
-Confirmed requests survive local process restart on Android. On reconnect or app foreground, the queue retries the same payload with the same key. A lost server response therefore replays the existing result when the server's replay store is available. The development API loses that store on server restart; it must be replaced by the PostgreSQL repository before real use.
+Confirmed requests survive local process restart on Android. On reconnect or app foreground, the queue retries the same payload with the same key. A lost server response therefore replays the existing result when the server's replay store is available. The PostgreSQL API saves the request result atomically with the financial event and preserves it across API restarts. The memory reference adapter cannot preserve replay results across restarts.
 
 A validation/authorization conflict is shown as Needs attention. Inspect group history and the error before retrying the exact request. Discarding a definitely rejected request returns its capture suggestion to review. Network failures and unknown outcomes stay pending and retain their key. Signing out stops capture and isolates that account's local data; another account cannot read or send it.
 

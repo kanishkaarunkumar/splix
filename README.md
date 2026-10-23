@@ -8,10 +8,14 @@ Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync --extra dev
-SPLIX_ALLOWED_ORIGINS=http://localhost:8081,http://127.0.0.1:8081 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+neon deploy
+npm run db:setup
+SPLIX_ALLOWED_ORIGINS=http://localhost:8081,http://127.0.0.1:8081 npm run api
 ```
 
-**The inherited API uses process-local memory.** Restarting it clears accounts, sessions, financial events and replay results. Use one process for development only. The PostgreSQL migrations are validated separately; the API still needs a PostgreSQL repository before a pilot or deployment. `/health` reports this limitation. Recovery-token delivery also requires a trusted delivery integration; no reset credential is returned to an unauthenticated caller.
+The API uses PostgreSQL when `DATABASE_URL` is configured. Accounts, hashed sessions, groups, joins, presets, events, ledger entries and idempotency responses survive API restarts. `npm run db:setup` reads Neon's CLI-managed environment, applies checksummed migrations with the direct owner connection, provisions a restricted API login, and writes private settings to `.env.api.local`. `npm run api` loads that file. See [Neon and Render setup](docs/neon-deployment.md).
+
+Without a database, local development can use the memory reference adapter. Render and `SPLIX_REQUIRE_DATABASE=1` require PostgreSQL and fail startup rather than silently lose data. `/health` reports actual storage and `persistent` status. `productionReady` stays false: recovery delivery, abuse controls and device/release checks remain separate work.
 
 ## Run the mobile app
 
@@ -41,7 +45,7 @@ pnpm build
 pnpm --dir apps/mobile exec expo export --platform android --output-dir .dist/android
 ```
 
-Run SQL migrations `001`, `002`, the seed and `db/tests/financial_invariants.sql` with `psql -v ON_ERROR_STOP=1` against a disposable PostgreSQL 18 database. Set `SPLIX_TEST_DATABASE_URL` to that database to enable report and real-connection race tests. Apply `db/grants/provision_roles.sql`, `db/grants/runtime.sql`, and `db/tests/runtime_privileges.sql` to verify runtime privileges. Production role passwords must be provisioned outside source control.
+For disposable PostgreSQL 18 testing, set `MIGRATION_DATABASE_URL` to the owner connection and `DATABASE_URL` to a new `splix_api` runtime connection, then run `uv run python -m app.migrate`. Set `SPLIX_TEST_DATABASE_URL` to the owner connection and `SPLIX_TEST_RUNTIME_DATABASE_URL` to the restricted connection to enable API restart and database tests. Apply the optional seed and invariant/grant assertions with `psql -v ON_ERROR_STOP=1`. Production passwords stay outside source control.
 
 The automated mobile-sized browser journey is in `apps/mobile/e2e`. Start the API on port 8000 with origin `http://127.0.0.1:8081`, build the preview with that API URL, serve `apps/mobile/dist` on port 8081, then run `pnpm --dir apps/mobile test:e2e`. Install Playwright Chromium or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to an installed Chrome executable.
 
