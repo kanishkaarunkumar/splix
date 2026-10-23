@@ -1,0 +1,13 @@
+# Disposable testing only: the current API uses process-local memory.
+# A service restart (including free-tier sleep) clears all server data.
+services:
+  - type: web
+    name: splix-api-test
+    runtime: python
+    plan: free
+    buildCommand: pip install .
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.12

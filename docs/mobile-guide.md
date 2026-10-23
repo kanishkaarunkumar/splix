@@ -1,5 +1,32 @@
 # Using Splix on Android
 
+## Build an independent test APK
+
+The repository includes a `render.yaml` Blueprint selecting Render's **free** web-service plan explicitly. In a Render account, create a Blueprint from this repository and verify the service remains on Free. No paid database or disk is included. This hosts the existing **disposable reference API**: sleeping, restarting or redeploying clears all accounts and financial data. Persistent API storage must be implemented before testing with data you need to keep.
+
+After deployment, check `https://YOUR-SERVICE.onrender.com/health`. Build with Java 17 and an installed Android SDK:
+
+```bash
+EXPO_PUBLIC_API_URL=https://YOUR-SERVICE.onrender.com bash scripts/build-test-apk.sh
+```
+
+The resulting `.dist/apk/splix-test.apk` connects over the internet and needs no laptop connection. The actual service URL must be supplied; the build script does not default to a laptop address. Free-service cold starts can exceed the client's request timeout: open the health URL to wake the test API, then retry sign-in. Hosting account access and a verified endpoint are required before generating this APK.
+
+## Optional USB test APK
+
+The test APK targets ARM64 phones running Android 8.1 or newer. It includes the JavaScript bundle and native notification listener, so Expo Go and Metro are unnecessary. It uses the debug signing key for installation testing, not store distribution.
+
+This build connects to the development API on your computer over USB. Enable Android Developer options and USB debugging, connect the phone, approve its debugging prompt, and run from the repository root:
+
+```bash
+adb install -r .dist/apk/splix-test.apk
+adb reverse tcp:8000 tcp:8000
+```
+
+Keep the API running on port 8000. Reapply `adb reverse` after reconnecting/rebooting the phone. The test build permits HTTP only for local development hosts; normal builds retain HTTPS requirements. The current API stores data in memory and loses it on server restart.
+
+To reproduce this optional local build with Java 17 and an installed Android SDK, set `JAVA_HOME` and `ANDROID_HOME`, then run `SPLIX_LOCAL_ANDROID_TEST=1 EXPO_PUBLIC_API_URL=http://127.0.0.1:8000 bash scripts/build-test-apk.sh`. It writes `.dist/apk/splix-test.apk`. The script generates a release bundle signed with the generated debug key and runs the capture module's unit tests. Real-phone capture still requires testing: sign in, create a group, open Active mode, grant access and activate that group, then check Inbox after a supported payment notification arrives.
+
 ## Home dock and overview
 
 The fixed home dock has Groups, Overview, Inbox and You tabs. Groups shows confirmed totals to pay / receive and an individual balance on each group card. Overview combines suggested counterparties across groups, lists the contributing groups, and lets you open each group to settle there. Owed and receivable amounts remain separate; a payment in one group never silently settles another. The person plan is calculated from the same net balances used by server settlement suggestions.
