@@ -3,7 +3,7 @@ import { AccessibilityInfo, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
-import { InstrumentSerif_400Regular } from "@expo-google-fonts/instrument-serif/400Regular";
+import { DMSans_900Black } from "@expo-google-fonts/dm-sans/900Black";
 import { DMSans_400Regular } from "@expo-google-fonts/dm-sans/400Regular";
 import { DMSans_600SemiBold } from "@expo-google-fonts/dm-sans/600SemiBold";
 import { IBMPlexMono_400Regular } from "@expo-google-fonts/ibm-plex-mono/400Regular";
@@ -39,7 +39,7 @@ function Product() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!!session}>
-        <Stack.Screen name="Home" options={{ title: "S P L I X" }} />
+        <Stack.Screen name="Home" options={{ title: "splix." }} />
         <Stack.Screen name="Group" options={{ title: "GROUP" }} />
         <Stack.Screen name="Expense" options={{ title: "SHARED EXPENSE" }} />
         <Stack.Screen
@@ -63,7 +63,7 @@ function Product() {
 }
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    InstrumentSerif_400Regular,
+    DMSans_900Black,
     DMSans_400Regular,
     DMSans_600SemiBold,
     IBMPlexMono_400Regular,

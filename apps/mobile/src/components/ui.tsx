@@ -1,5 +1,5 @@
-// Native adaptations of Bastion's button/input/select/disclosure patterns and Wenvy tokens.
-import React, { type ReactNode } from "react";
+// Native controls with Splix's rounded-square, colour-block visual system.
+import React, { createContext, useContext, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -14,22 +14,37 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 export const c = {
-  ink: "#0c0a07",
-  panel: "#15110b",
-  soft: "#1d1812",
-  paper: "#f3e7cf",
-  dim: "#c9b48b",
-  line: "#3b3428",
-  wine: "#780000",
-  credit: "#b7d6b2",
-  debit: "#f4b4a1",
+  ink: "#302427",
+  panel: "#F7F5D8",
+  soft: "#EEECD3",
+  paper: "#F7F5D8",
+  dim: "#D1C1BB",
+  line: "#675451",
+  teal: "#50B49F",
+  coral: "#FA7559",
+  pink: "#E8A1D6",
+  yellow: "#E6D344",
+  credit: "#21634E",
+  debit: "#A03425",
+  muted: "#665F50",
 };
 export const fonts = {
-  display: "InstrumentSerif_400Regular",
+  display: "IBMPlexMono_400Regular",
+  brand: "DMSans_900Black",
   body: "DMSans_400Regular",
   medium: "DMSans_600SemiBold",
   mono: "IBMPlexMono_400Regular",
 };
+export type Tone = "cream" | "teal" | "coral" | "pink" | "yellow" | "dark";
+const toneColor: Record<Tone, string> = {
+  cream: c.paper,
+  teal: c.teal,
+  coral: c.coral,
+  pink: c.pink,
+  yellow: c.yellow,
+  dark: c.ink,
+};
+const Surface = createContext({ text: c.paper, muted: c.dim, dark: true });
 export function Txt({
   children,
   muted = false,
@@ -41,11 +56,12 @@ export function Txt({
   mono?: boolean;
   style?: object;
 }) {
+  const surface = useContext(Surface);
   return (
     <Text
       style={[
         s.text,
-        muted && { color: c.dim },
+        { color: muted ? surface.muted : surface.text },
         mono && { fontFamily: fonts.mono, fontSize: 11 },
         style,
       ]}
@@ -61,10 +77,15 @@ export function Heading({
   children: ReactNode;
   small?: boolean;
 }) {
+  const surface = useContext(Surface);
   return (
     <Text
       accessibilityRole="header"
-      style={[s.heading, small && { fontSize: 29 }]}
+      style={[
+        s.heading,
+        { color: surface.text },
+        small && { fontSize: 23, lineHeight: 29, letterSpacing: -1 },
+      ]}
     >
       {children}
     </Text>
@@ -72,7 +93,7 @@ export function Heading({
 }
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <Txt mono muted style={{ letterSpacing: 1.2, textTransform: "uppercase" }}>
+    <Txt mono muted style={{ letterSpacing: 0.7 }}>
       {children}
     </Txt>
   );
@@ -89,15 +110,116 @@ export function Row({
 export function Card({
   children,
   style,
+  tone = "cream",
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  tone?: Tone;
 }) {
-  return <View style={[s.card, style]}>{children}</View>;
+  return (
+    <Surface.Provider
+      value={{
+        text: tone === "dark" ? c.paper : c.ink,
+        muted: tone === "dark" ? c.dim : tone === "cream" ? c.muted : "#38332D",
+        dark: tone === "dark",
+      }}
+    >
+      <View style={[s.card, { backgroundColor: toneColor[tone] }, style]}>
+        {children}
+      </View>
+    </Surface.Provider>
+  );
+}
+export function Wordmark({ large = false }: { large?: boolean }) {
+  const surface = useContext(Surface);
+  return (
+    <Text
+      accessibilityLabel="Splix"
+      style={{
+        fontFamily: fonts.brand,
+        color: surface.text,
+        fontSize: large ? 76 : 34,
+        lineHeight: large ? 82 : 40,
+        letterSpacing: large ? -6 : -2.5,
+      }}
+    >
+      splix<Text style={{ color: surface.dark ? c.coral : c.ink }}>.</Text>
+    </Text>
+  );
+}
+export function Bloom({ size = 88 }: { size?: number }) {
+  const half = size / 2;
+  return (
+    <View
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{ width: size, height: size, transform: [{ rotate: "-8deg" }] }}
+    >
+      {[
+        {
+          backgroundColor: c.pink,
+          top: 0,
+          left: 0,
+          borderBottomRightRadius: 4,
+        },
+        {
+          backgroundColor: c.coral,
+          top: 0,
+          left: half,
+          borderBottomLeftRadius: 4,
+        },
+        {
+          backgroundColor: "#268D77",
+          top: half,
+          left: 0,
+          borderTopRightRadius: 4,
+        },
+        {
+          backgroundColor: c.yellow,
+          top: half,
+          left: half,
+          borderTopLeftRadius: 4,
+        },
+      ].map((petal, index) => (
+        <View
+          key={index}
+          style={[
+            {
+              position: "absolute",
+              width: half,
+              height: half,
+              borderRadius: half * 0.74,
+            },
+            petal,
+          ]}
+        />
+      ))}
+      <View
+        style={{
+          position: "absolute",
+          width: size * 0.19,
+          height: size * 0.19,
+          left: size * 0.405,
+          top: size * 0.405,
+          borderRadius: size * 0.055,
+          backgroundColor: c.paper,
+          transform: [{ rotate: "8deg" }],
+        }}
+      />
+    </View>
+  );
 }
 export function Divider() {
+  const surface = useContext(Surface);
   return (
-    <View style={{ height: 1, backgroundColor: c.line, marginVertical: 6 }} />
+    <View
+      style={{
+        height: 1,
+        backgroundColor: surface.dark ? c.line : "#DCD9BD",
+        marginVertical: 6,
+      }}
+    />
   );
 }
 export function Badge({
@@ -108,8 +230,10 @@ export function Badge({
   warning?: boolean;
 }) {
   return (
-    <View style={[s.badge, warning && { borderColor: c.debit }]}>
-      <Txt mono style={{ color: warning ? c.debit : c.credit, fontSize: 10 }}>
+    <View
+      style={[s.badge, { backgroundColor: warning ? "#F5D5A8" : "#DCEAD2" }]}
+    >
+      <Txt mono style={{ color: warning ? "#753B20" : c.credit, fontSize: 10 }}>
         {children}
       </Txt>
     </View>
@@ -142,19 +266,19 @@ export function Button({
       style={({ pressed, focused }: any) => [
         s.button,
         secondary && s.secondary,
-        compact && { flexGrow: 1 },
-        danger && { borderColor: c.debit },
+        compact && { flex: 1 },
+        danger && { backgroundColor: "#F2D5D1", borderColor: "#E6B6AF" },
         (disabled || busy) && { opacity: 0.45 },
-        pressed && { opacity: 0.7 },
+        pressed && { opacity: 0.78, transform: [{ scale: 0.985 }] },
         focused && {
           outlineStyle: "solid",
-          outlineColor: c.paper,
-          outlineWidth: 2,
+          outlineColor: c.teal,
+          outlineWidth: 3,
           outlineOffset: 3,
         },
       ]}
     >
-      {busy && <ActivityIndicator color={c.paper} />}
+      {busy && <ActivityIndicator color={c.ink} />}
       <Text style={[s.buttonLabel, danger && { color: c.debit }]}>{label}</Text>
     </Pressable>
   );
@@ -181,14 +305,14 @@ export function Field({
   autoCapitalize?: "none" | "words" | "sentences";
 }) {
   return (
-    <View style={{ gap: 7 }}>
-      <Txt style={{ fontSize: 12, fontFamily: fonts.medium }}>{label}</Txt>
+    <View style={{ gap: 8 }}>
+      <Txt style={{ fontSize: 12, fontFamily: fonts.mono }}>{label}</Txt>
       <TextInput
         accessibilityLabel={label}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor="#897d66"
+        placeholderTextColor="#847D6C"
         secureTextEntry={secure}
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
@@ -196,7 +320,7 @@ export function Field({
         multiline={multiline}
         style={[
           s.input,
-          multiline && { minHeight: 90, textAlignVertical: "top" },
+          multiline && { minHeight: 96, textAlignVertical: "top" },
         ]}
       />
       {hint && (
@@ -219,9 +343,9 @@ export function Choice<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <View style={{ gap: 8 }}>
-      <Txt style={{ fontSize: 12, fontFamily: fonts.medium }}>{label}</Txt>
-      <Row style={{ flexWrap: "wrap", justifyContent: "flex-start", gap: 8 }}>
+    <View style={{ gap: 9 }}>
+      <Txt style={{ fontSize: 12, fontFamily: fonts.mono }}>{label}</Txt>
+      <Row style={{ flexWrap: "wrap", justifyContent: "flex-start", gap: 7 }}>
         {options.map((option) => (
           <Pressable
             key={option.value}
@@ -229,13 +353,27 @@ export function Choice<T extends string>({
             accessibilityState={{ selected: value === option.value }}
             accessibilityLabel={`${label}: ${option.label}`}
             onPress={() => onChange(option.value)}
-            style={({ pressed }) => [
+            style={({ pressed, focused }: any) => [
               s.chip,
               value === option.value && s.selected,
-              pressed && { opacity: 0.6 },
+              pressed && { opacity: 0.7 },
+              focused && {
+                outlineStyle: "solid",
+                outlineWidth: 2,
+                outlineColor: c.teal,
+                outlineOffset: 2,
+              },
             ]}
           >
-            <Txt style={{ fontSize: 12 }}>{option.label}</Txt>
+            <Txt
+              style={{
+                fontSize: 12,
+                color: c.ink,
+                fontFamily: value === option.value ? fonts.medium : fonts.body,
+              }}
+            >
+              {option.label}
+            </Txt>
           </Pressable>
         ))}
       </Row>
@@ -262,7 +400,7 @@ export function Check({
       <Text
         style={[
           s.checkbox,
-          checked && { backgroundColor: c.paper, color: c.ink },
+          checked && { backgroundColor: c.teal, borderColor: c.teal },
         ]}
       >
         {checked ? "✓" : ""}
@@ -274,9 +412,9 @@ export function Check({
 export function Avatar({ name }: { name: string }) {
   return (
     <View accessibilityElementsHidden style={s.avatar}>
-      <Txt style={{ fontFamily: fonts.display, fontSize: 22 }}>
+      <Text style={{ color: c.ink, fontFamily: fonts.brand, fontSize: 21 }}>
         {name.slice(0, 1).toUpperCase()}
-      </Txt>
+      </Text>
     </View>
   );
 }
@@ -301,8 +439,11 @@ export function Empty({
   action?: ReactNode;
 }) {
   return (
-    <Card style={{ paddingVertical: 30, gap: 12 }}>
-      <Heading small>{title}</Heading>
+    <Card style={{ paddingVertical: 26, gap: 15 }}>
+      <Row>
+        <Heading small>{title}</Heading>
+        <Bloom size={46} />
+      </Row>
       <Txt muted>{detail}</Txt>
       {action}
     </Card>
@@ -311,7 +452,7 @@ export function Empty({
 export function Loading() {
   return (
     <View style={{ padding: 30, alignItems: "center", gap: 10 }}>
-      <ActivityIndicator color={c.paper} />
+      <ActivityIndicator color={c.teal} />
       <Txt muted>Loading your group…</Txt>
     </View>
   );
@@ -336,37 +477,39 @@ export function Page({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={s.page}
       >
-        <View style={{ gap: 8, paddingVertical: 6 }}>
-          <Heading>{title}</Heading>
-          {subtitle && <Txt muted>{subtitle}</Txt>}
-        </View>
+        {!!title && (
+          <View style={{ gap: 9, paddingVertical: 7 }}>
+            <Heading>{title}</Heading>
+            {subtitle && <Txt muted>{subtitle}</Txt>}
+          </View>
+        )}
         {children}
         <View style={{ height: 12 }} />
       </ScrollView>
-      {footer && <View style={s.footer}>{footer}</View>}
+      {footer && (
+        <View style={s.footer}>
+          <View style={{ width: "100%", maxWidth: 1036, alignSelf: "center" }}>
+            {footer}
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 export const s = StyleSheet.create({
-  text: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 21,
-    color: c.paper,
-  },
+  text: { fontFamily: fonts.body, fontSize: 14, lineHeight: 21 },
   heading: {
     fontFamily: fonts.display,
-    color: c.paper,
-    fontSize: 42,
-    lineHeight: 48,
-    letterSpacing: -0.8,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -1.3,
   },
   page: {
     width: "100%",
-    maxWidth: 760,
+    maxWidth: 1080,
     alignSelf: "center",
-    padding: 22,
-    gap: 20,
+    padding: 20,
+    gap: 18,
     flexGrow: 1,
   },
   row: {
@@ -375,92 +518,76 @@ export const s = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
-  card: {
-    padding: 20,
-    gap: 14,
-    borderWidth: 1,
-    borderColor: c.line,
-    borderRadius: 14,
-    backgroundColor: c.panel,
-  },
+  card: { padding: 22, gap: 16, borderRadius: 26 },
   button: {
-    minHeight: 48,
-    borderRadius: 9,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    minHeight: 50,
+    borderRadius: 15,
+    paddingHorizontal: 17,
+    paddingVertical: 13,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: c.wine,
-    borderColor: c.wine,
+    backgroundColor: c.coral,
+    borderColor: c.coral,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 9,
+    gap: 8,
   },
-  secondary: { backgroundColor: c.soft, borderColor: c.line },
-  buttonLabel: { fontFamily: fonts.medium, color: c.paper, fontSize: 13 },
+  secondary: { backgroundColor: c.soft, borderColor: "#DCD8BF" },
+  buttonLabel: {
+    fontFamily: fonts.medium,
+    color: c.ink,
+    fontSize: 13,
+    textAlign: "center",
+  },
   input: {
     borderWidth: 1,
-    borderColor: c.line,
-    borderRadius: 8,
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    minHeight: 48,
-    color: c.paper,
+    borderColor: "#D8D5BC",
+    borderRadius: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    minHeight: 52,
+    color: c.ink,
     fontFamily: fonts.body,
     fontSize: 15,
-    backgroundColor: c.ink,
+    backgroundColor: "#FFFEEB",
   },
   chip: {
     minHeight: 44,
     borderWidth: 1,
-    borderColor: c.line,
-    paddingHorizontal: 13,
+    borderColor: "#D9D5BC",
+    backgroundColor: c.soft,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 22,
+    borderRadius: 12,
     justifyContent: "center",
   },
-  selected: { backgroundColor: c.wine, borderColor: c.paper },
+  selected: { backgroundColor: c.teal, borderColor: c.teal },
   check: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 12 },
   checkbox: {
-    height: 23,
-    width: 23,
-    borderRadius: 6,
+    height: 25,
+    width: 25,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: c.dim,
-    color: c.paper,
+    borderColor: "#A8A18E",
+    color: c.ink,
+    backgroundColor: c.paper,
     textAlign: "center",
-    lineHeight: 21,
+    lineHeight: 23,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: c.line,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: c.soft,
+    backgroundColor: c.pink,
   },
   badge: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: c.line,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
     alignSelf: "flex-start",
   },
-  error: {
-    borderWidth: 1,
-    borderColor: c.debit,
-    backgroundColor: "#2d1811",
-    borderRadius: 8,
-    padding: 14,
-  },
-  footer: {
-    borderTopWidth: 1,
-    borderColor: c.line,
-    padding: 14,
-    backgroundColor: c.panel,
-    gap: 8,
-  },
+  error: { backgroundColor: "#F8D9CE", borderRadius: 16, padding: 16 },
+  footer: { padding: 14, backgroundColor: c.ink, gap: 8 },
 });

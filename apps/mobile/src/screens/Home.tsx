@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, View, useWindowDimensions } from "react-native";
 import { useStore } from "../core/store";
 import type { ScreenProps } from "../navigation";
 import {
+  Bloom,
   Avatar,
   Badge,
   Button,
@@ -16,10 +17,11 @@ import {
   Page,
   Row,
   Txt,
-  c,
+  type Tone,
 } from "../components/ui";
 export function Home({ navigation }: ScreenProps<"Home">) {
   const { session, groups, local, api, refresh, offline, message } = useStore();
+  const wide = useWindowDimensions().width >= 800;
   const [name, setName] = useState(""),
     [code, setCode] = useState(""),
     [error, setError] = useState(""),
@@ -59,32 +61,67 @@ export function Home({ navigation }: ScreenProps<"Home">) {
       subtitle="Make room for the good stuff."
     >
       <Row>
-        <Eyebrow>Your shared life</Eyebrow>
+        <Eyebrow>Your shared life, a little lighter.</Eyebrow>
         <Button
-          compact
           label="Profile"
           secondary
           onPress={() => navigation.navigate("Profile")}
         />
       </Row>
-      <Card style={{ backgroundColor: c.wine, borderColor: c.wine }}>
-        <Heading small>Shared, settled.</Heading>
-        <Txt>The little things add up. Keep them fair.</Txt>
-        <Row>
-          <Button
-            label="Private inbox"
-            secondary
-            compact
-            onPress={() => navigation.navigate("Inbox")}
-          />
-          <Button
-            label="Active mode"
-            secondary
-            compact
-            onPress={() => navigation.navigate("Capture")}
-          />
-        </Row>
-      </Card>
+      <Row style={{ alignItems: "stretch", gap: 14 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Private inbox"
+          onPress={() => navigation.navigate("Inbox")}
+          style={{ flex: 1 }}
+        >
+          <Card
+            tone="teal"
+            style={{
+              minHeight: 164,
+              flex: 1,
+              justifyContent: "space-between",
+              padding: 20,
+            }}
+          >
+            <Row>
+              <Bloom size={36} />
+              <Txt style={{ fontSize: 24 }}>↗</Txt>
+            </Row>
+            <View style={{ gap: 5 }}>
+              <Heading small>Private inbox</Heading>
+              <Txt style={{ fontSize: 12 }}>Review before you share.</Txt>
+            </View>
+          </Card>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Active mode"
+          onPress={() => navigation.navigate("Capture")}
+          style={{ flex: 1 }}
+        >
+          <Card
+            tone="pink"
+            style={{
+              minHeight: 164,
+              flex: 1,
+              justifyContent: "space-between",
+              padding: 20,
+            }}
+          >
+            <Row>
+              <Txt mono style={{ fontSize: 25 }}>
+                ＋
+              </Txt>
+              <Txt style={{ fontSize: 24 }}>↗</Txt>
+            </Row>
+            <View style={{ gap: 5 }}>
+              <Heading small>Active mode</Heading>
+              <Txt style={{ fontSize: 12 }}>Pay now. Decide later.</Txt>
+            </View>
+          </Card>
+        </Pressable>
+      </Row>
       {(offline || message) && (
         <Badge warning>{message || "Offline · showing saved groups"}</Badge>
       )}
@@ -116,31 +153,45 @@ export function Home({ navigation }: ScreenProps<"Home">) {
           }
         />
       )}
-      {groups.map((group) => (
-        <Pressable
-          key={group.id}
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${group.name}`}
-          onPress={() => navigation.navigate("Group", { groupId: group.id })}
+      {!!groups.length && (
+        <View
+          style={{
+            flexDirection: wide ? "row" : "column",
+            flexWrap: "wrap",
+            gap: 14,
+          }}
         >
-          <Card>
-            <Row>
-              <Row>
-                <Avatar name={group.name} />
-                <View>
-                  <Txt style={{ fontSize: 18 }}>{group.name}</Txt>
+          {groups.map((group, index) => (
+            <Pressable
+              key={group.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${group.name}`}
+              onPress={() =>
+                navigation.navigate("Group", { groupId: group.id })
+              }
+              style={wide ? { width: "48.8%" } : { width: "100%" }}
+            >
+              <Card
+                tone={(["cream", "yellow", "pink"] as Tone[])[index % 3]}
+                style={{ minHeight: 148, justifyContent: "space-between" }}
+              >
+                <Row>
+                  <Avatar name={group.name} />
+                  <Txt mono>{group.archived ? "Archived" : "Active"} ↗</Txt>
+                </Row>
+                <View style={{ gap: 7 }}>
+                  <Heading small>{group.name}</Heading>
                   <Txt muted style={{ fontSize: 12 }}>
                     {group.members.length}{" "}
-                    {group.members.length === 1 ? "member" : "members"} ·{" "}
-                    {group.archived ? "Archived" : "Active"}
+                    {group.members.length === 1 ? "member" : "members"} · Shared
+                    expenses
                   </Txt>
                 </View>
-              </Row>
-              <Txt muted>↗</Txt>
-            </Row>
-          </Card>
-        </Pressable>
-      ))}
+              </Card>
+            </Pressable>
+          ))}
+        </View>
+      )}
       {create && (
         <Card>
           <Heading small>Bring your people.</Heading>

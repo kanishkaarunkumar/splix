@@ -20,6 +20,19 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
   expect(member.ok()).toBeTruthy();
   const memberData = await member.json();
   await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Welcome back." }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "test-results/auth-mobile.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: "test-results/auth-desktop.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page
     .getByRole("radio", { name: "Account: Create account", exact: true })
     .click();
@@ -82,7 +95,9 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
   });
   // The native shell is bundled. In the web preview, keep route chunks reachable
   // while simulating loss of the API connection.
-  await page.route('http://127.0.0.1:8000/api/v1/**', route => route.abort('internetdisconnected'));
+  await page.route("http://127.0.0.1:8000/api/v1/**", (route) =>
+    route.abort("internetdisconnected"),
+  );
   await page
     .getByRole("button", { name: "Confirm shared expense", exact: true })
     .click();
@@ -93,7 +108,7 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
     .getByRole("button", { name: /1 pending · balances exclude/ })
     .click();
   await expect(page.getByText("Pending", { exact: true })).toBeVisible();
-  await page.unroute('http://127.0.0.1:8000/api/v1/**');
+  await page.unroute("http://127.0.0.1:8000/api/v1/**");
   await page
     .getByRole("button", { name: "Retry pending writes", exact: true })
     .click();

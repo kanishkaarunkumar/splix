@@ -39,3 +39,7 @@ The local Expo Android module compiles Person 1's capture source directly; there
 3. The machine's configured Android SDK symlink points to a missing mount. APK/Kotlin compilation, Android instrumentation, screen readers/large text, on-device offline/restart, consent/revocation and live payment-app capture were not executed locally. The native CI job provides a reproducible compile check; it is not a substitute for device testing.
 4. Capture is a prototype with candidate source packages. No universal coverage, live-device precision/recall, background prompt delivery or Play approval is claimed. Inbox fallback is implemented. Retention duration/automatic expiry, pilot feedback and final privacy/release disclosures still require agreement and validation.
 5. SQL benchmark/restore checks concern PostgreSQL artifacts independently of the current memory API. They must not be described as end-to-end persistent API evidence.
+
+## Visual revision — October 23, 2026
+
+The user-supplied colourful rounded-square reference replaces the earlier Bastion/Wenvy styling. The current theme uses deep brown framing, cream cards, teal/coral/pink/yellow blocks, rounded-square buttons, inputs and avatars, DM Sans lettering and IBM Plex Mono headings. Sign-in adapts from a two-panel desktop layout to stacked mobile panels. The dashboard uses coloured action and group tiles. Shared native controls carry the theme through all financial and review screens. Bastion remains an initial component-pattern reference and retains attribution; its visual theme is no longer used.
