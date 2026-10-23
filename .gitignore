@@ -17,6 +17,7 @@ dist/
 playwright-report/
 test-results/
 apps/mobile/android/
+apps/mobile/modules/**/android/build/
 apps/mobile/ios/
 *.egg-info/
 

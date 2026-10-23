@@ -36,7 +36,7 @@ The local Expo Android module compiles Person 1's capture source directly; there
 
 1. The inherited API is still an in-memory reference adapter. It is not wired to the validated PostgreSQL schema. Server restart loses users, sessions, events and replay results; one-process locking is not a production transaction strategy. Wire a real PostgreSQL repository and transaction-level request replay before pilot/deployment. Health reports `productionReady: false`.
 2. Trusted recovery-token delivery, abuse throttling and production operational configuration remain server work. Recovery screens and safe token confirmation exist; delivery is not claimed.
-3. The machine's configured Android SDK symlink points to a missing mount. APK/Kotlin compilation, Android instrumentation, screen readers/large text, on-device offline/restart, consent/revocation and live payment-app capture were not executed locally. The native CI job provides a reproducible compile check; it is not a substitute for device testing.
+3. A separate workspace SDK resolved the missing system SDK mount; ARM64 APK/Kotlin compilation and four capture-parser unit tests now pass (see APK evidence below). Android instrumentation, screen readers/large text, on-device offline/restart, consent/revocation and live payment-app capture remain unverified. Compilation is not a substitute for device testing.
 4. Capture is a prototype with candidate source packages. No universal coverage, live-device precision/recall, background prompt delivery or Play approval is claimed. Inbox fallback is implemented. Retention duration/automatic expiry, pilot feedback and final privacy/release disclosures still require agreement and validation.
 5. SQL benchmark/restore checks concern PostgreSQL artifacts independently of the current memory API. They must not be described as end-to-end persistent API evidence.
 
@@ -49,3 +49,11 @@ The follow-up visual adjustment uses orange across the shared page, navigation h
 The home navigation now has Groups, Overview, Inbox and You dock tabs. A read-only overview groups deterministic settlement suggestions by person across the account’s groups, retaining separate owed/receivable amounts and group drill-down. It uses confirmed balances, not local pending writes, and displays cache freshness / incomplete coverage. Home loads group balances in batches of four; existing server endpoints are unchanged.
 
 Follow-up verification passed: TypeScript, zero-warning Expo lint, 12 mobile core tests, and three Chromium journeys covering the full financial flow, dock navigation, three-group person totals, orange/teal colours, hover and reduced motion. Web and Android Hermes production exports passed; the Android export does not replace the outstanding native/device checks above.
+
+## Standalone Android APK — October 23, 2026
+
+Built source `9c9c53c` with Java 17, Gradle 9.4.1, Android SDK 37 and NDK 27.1.12297006. `:app:assembleRelease` and `:splix-capture:testDebugUnitTest` passed; the capture test reports contain four tests with zero failures/errors/skips. TypeScript and zero-warning Expo lint passed before prebuild. The generated release APK uses the debug signing key for installation testing, ARM64 only, minimum Android API 27 (Android 8.1), target API 36.
+
+Artifact: `.dist/apk/splix-test.apk` (37,459,483 bytes), SHA-256 `0a819f080b3415c5590904696d85c64073eabeeed78be2d4e4c987234a9e3543`. APK v2 signature verification, ZIP integrity, embedded Hermes bundle, HTTPS API address, native bridge/listener classes and ARM64 library checks passed. The merged manifest retains disabled backup and the protected notification listener; the hosted build has no local HTTP network-security override.
+
+The APK points to `https://splix-api-test.onrender.com` and needs no laptop connection. HTTPS health, unauthorized-access rejection, temporary registration, authenticated profile/group list, account cleanup and session revocation were checked against that server. The server still reports memory storage and `productionReady: false`; deployment does not resolve the persistence gate above. No physical-device installation or live UPI notification capture is claimed.
