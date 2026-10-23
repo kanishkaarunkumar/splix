@@ -1,0 +1,22 @@
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'com.splix.bridge'
+version = '1.0.0'
+android {
+  namespace 'com.splix.bridge'
+  defaultConfig { minSdkVersion 27; testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner" }
+  sourceSets.main.java.srcDirs += [new File(projectDir, '../../../../../android/capture-prototype/src/main/kotlin').absolutePath]
+}
+
+android.sourceSets {
+  test.java.srcDirs += [new File(projectDir, '../../../../../android/capture-prototype/src/test/kotlin').absolutePath]
+  test.resources.srcDirs += [new File(projectDir, '../../../../../android/capture-prototype/src/test/resources').absolutePath]
+  androidTest.java.srcDirs += [new File(projectDir, '../../../../../android/capture-prototype/src/androidTest/kotlin').absolutePath]
+}
+dependencies {
+  testImplementation 'junit:junit:4.13.2'
+  androidTestImplementation 'androidx.test:core-ktx:1.6.1'
+  androidTestImplementation 'androidx.test.ext:junit-ktx:1.2.1'
+  androidTestImplementation 'androidx.test:runner:1.6.2'
+}

@@ -1,0 +1,281 @@
+PostgreSQL: 18.6 (Debian 18.6-1.pgdg13+2)
+10k group: 587a8d47-a428-4214-a51c-036973950191
+Workload: 10000
+
+history: n=30, client wall p50=0.273ms p95=0.829ms
+Limit  (cost=0.29..2.46 rows=25 width=36) (actual time=0.012..0.022 rows=25.00 loops=1)
+  Buffers: shared hit=27
+  ->  Index Scan using financial_events_history_idx on financial_events  (cost=0.29..868.72 rows=10000 width=36) (actual time=0.012..0.020 rows=25.00 loops=1)
+        Index Cond: (group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid)
+        Index Searches: 1
+        Buffers: shared hit=27
+Planning Time: 0.051 ms
+Execution Time: 0.032 ms
+
+balances: n=30, client wall p50=2.147ms p95=3.108ms
+HashAggregate  (cost=130.69..130.71 rows=1 width=40) (actual time=2.872..2.873 rows=1.00 loops=1)
+  Group Key: m.user_id
+  Batches: 1  Memory Usage: 32kB
+  Buffers: shared hit=114
+  ->  Nested Loop Left Join  (cost=9.68..128.06 rows=526 width=40) (actual time=0.250..1.752 rows=10000.00 loops=1)
+        Buffers: shared hit=114
+        ->  Seq Scan on group_members m  (cost=0.00..1.24 rows=1 width=32) (actual time=0.009..0.009 rows=1.00 loops=1)
+              Filter: (group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid)
+              Rows Removed by Filter: 18
+              Buffers: shared hit=1
+        ->  Bitmap Heap Scan on ledger_entries l  (cost=9.68..121.57 rows=526 width=40) (actual time=0.239..0.851 rows=10000.00 loops=1)
+              Recheck Cond: ((group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid) AND (m.user_id = user_id))
+              Heap Blocks: exact=104
+              Buffers: shared hit=113
+              ->  Bitmap Index Scan on ledger_entries_group_user_idx  (cost=0.00..9.54 rows=526 width=0) (actual time=0.219..0.219 rows=10000.00 loops=1)
+                    Index Cond: ((group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid) AND (user_id = m.user_id))
+                    Index Searches: 1
+                    Buffers: shared hit=9
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.296 ms
+Execution Time: 2.899 ms
+
+monthly_report: n=30, client wall p50=6.272ms p95=7.673ms
+Nested Loop Left Join  (cost=1270.71..1272.65 rows=1 width=79) (actual time=8.636..8.669 rows=1.00 loops=1)
+  Join Filter: (m_1.user_id = m.user_id)
+  Buffers: shared hit=3014
+  CTE month_events
+    ->  Bitmap Heap Scan on financial_events e_1  (cost=43.33..192.48 rows=866 width=116) (actual time=0.058..0.174 rows=868.00 loops=1)
+          Recheck Cond: ((group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid) AND (effective_date >= '2025-01-01'::date) AND (effective_date < '2025-02-01'::date))
+          Heap Blocks: exact=40
+          Buffers: shared hit=50
+          ->  Bitmap Index Scan on financial_events_month_idx  (cost=0.00..43.11 rows=866 width=0) (actual time=0.049..0.050 rows=868.00 loops=1)
+                Index Cond: ((group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid) AND (effective_date >= '2025-01-01'::date) AND (effective_date < '2025-02-01'::date))
+                Index Searches: 1
+                Buffers: shared hit=10
+  CTE expense_effects
+    ->  Append  (cost=28.15..351.76 rows=867 width=98) (actual time=0.220..1.924 rows=868.00 loops=1)
+          Buffers: shared hit=143
+          ->  Hash Join  (cost=28.15..319.63 rows=866 width=98) (actual time=0.220..1.821 rows=868.00 loops=1)
+                Hash Cond: (x_1.event_id = me_2.id)
+                Buffers: shared hit=143
+                ->  Seq Scan on expenses x_1  (cost=0.00..243.12 rows=10012 width=42) (actual time=0.004..0.504 rows=10012.00 loops=1)
+                      Buffers: shared hit=143
+                ->  Hash  (cost=17.32..17.32 rows=866 width=16) (actual time=0.197..0.197 rows=868.00 loops=1)
+                      Buckets: 1024  Batches: 1  Memory Usage: 49kB
+                      ->  CTE Scan on month_events me_2  (cost=0.00..17.32 rows=866 width=16) (actual time=0.001..0.074 rows=868.00 loops=1)
+                            Storage: Memory  Maximum Storage: 105kB
+          ->  Nested Loop  (cost=0.29..27.79 rows=1 width=98) (actual time=0.045..0.047 rows=0.00 loops=1)
+                ->  CTE Scan on month_events reversal_1  (cost=0.00..19.48 rows=1 width=16) (actual time=0.045..0.046 rows=0.00 loops=1)
+                      Filter: (kind = 'reversal'::text)
+                      Rows Removed by Filter: 868
+                      Storage: Memory  Maximum Storage: 105kB
+                ->  Index Scan using expenses_event_group_uq on expenses original  (cost=0.29..8.30 rows=1 width=42) (never executed)
+                      Index Cond: (event_id = reversal_1.reverses_event_id)
+                      Index Searches: 0
+  CTE settlement_activity
+    ->  Append  (cost=1.09..41.31 rows=5 width=64) (actual time=0.181..0.183 rows=0.00 loops=1)
+          Buffers: shared hit=1
+          ->  Hash Join  (cost=1.09..20.70 rows=4 width=64) (actual time=0.125..0.126 rows=0.00 loops=1)
+                Hash Cond: (me_3.id = s_2.event_id)
+                Buffers: shared hit=1
+                ->  CTE Scan on month_events me_3  (cost=0.00..17.32 rows=866 width=16) (actual time=0.000..0.040 rows=868.00 loops=1)
+                      Storage: Memory  Maximum Storage: 105kB
+                ->  Hash  (cost=1.04..1.04 rows=4 width=56) (actual time=0.015..0.016 rows=4.00 loops=1)
+                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                      Buffers: shared hit=1
+                      ->  Seq Scan on settlements s_2  (cost=0.00..1.04 rows=4 width=56) (actual time=0.010..0.010 rows=4.00 loops=1)
+                            Buffers: shared hit=1
+          ->  Nested Loop  (cost=0.00..20.58 rows=1 width=64) (actual time=0.054..0.055 rows=0.00 loops=1)
+                Join Filter: (s_3.event_id = reversal_2.reverses_event_id)
+                ->  CTE Scan on month_events reversal_2  (cost=0.00..19.48 rows=1 width=16) (actual time=0.054..0.054 rows=0.00 loops=1)
+                      Filter: (kind = 'reversal'::text)
+                      Rows Removed by Filter: 868
+                      Storage: Memory  Maximum Storage: 105kB
+                ->  Seq Scan on settlements s_3  (cost=0.00..1.04 rows=4 width=56) (never executed)
+  ->  Nested Loop Left Join  (cost=659.41..661.00 rows=1 width=47) (actual time=4.404..4.424 rows=1.00 loops=1)
+        Join Filter: (l_1.user_id = m.user_id)
+        Buffers: shared hit=265
+        ->  Nested Loop  (cost=608.44..609.98 rows=1 width=39) (actual time=4.348..4.364 rows=1.00 loops=1)
+              Join Filter: (m.user_id = u.id)
+              Rows Removed by Join Filter: 18
+              Buffers: shared hit=260
+              ->  Merge Left Join  (cost=608.44..608.55 rows=1 width=32) (actual time=4.335..4.350 rows=1.00 loops=1)
+                    Merge Cond: (m.user_id = pd.user_id)
+                    Buffers: shared hit=259
+                    ->  Sort  (cost=324.20..324.20 rows=1 width=24) (actual time=2.578..2.588 rows=1.00 loops=1)
+                          Sort Key: m.user_id
+                          Sort Method: quicksort  Memory: 25kB
+                          Buffers: shared hit=155
+                          ->  Hash Right Join  (cost=318.65..324.19 rows=1 width=24) (actual time=2.563..2.575 rows=1.00 loops=1)
+                                Hash Cond: (s.user_id = m.user_id)
+                                Buffers: shared hit=155
+                                ->  HashAggregate  (cost=317.40..320.40 rows=200 width=24) (actual time=2.535..2.544 rows=1.00 loops=1)
+                                      Group Key: s.user_id
+                                      Batches: 1  Memory Usage: 32kB
+                                      Buffers: shared hit=154
+                                      ->  Append  (cost=28.15..313.06 rows=869 width=48) (actual time=0.521..2.385 rows=868.00 loops=1)
+                                            Buffers: shared hit=154
+                                            ->  Hash Join  (cost=28.15..280.91 rows=868 width=48) (actual time=0.520..2.251 rows=868.00 loops=1)
+                                                  Hash Cond: (s.expense_event_id = me.id)
+                                                  Buffers: shared hit=154
+                                                  ->  Seq Scan on expense_shares s  (cost=0.00..204.30 rows=10030 width=40) (actual time=0.004..0.594 rows=10030.00 loops=1)
+                                                        Buffers: shared hit=104
+                                                  ->  Hash  (cost=17.32..17.32 rows=866 width=16) (actual time=0.493..0.494 rows=868.00 loops=1)
+                                                        Buckets: 1024  Batches: 1  Memory Usage: 49kB
+                                                        Buffers: shared hit=50
+                                                        ->  CTE Scan on month_events me  (cost=0.00..17.32 rows=866 width=16) (actual time=0.060..0.364 rows=868.00 loops=1)
+                                                              Storage: Memory  Maximum Storage: 105kB
+                                                              Buffers: shared hit=50
+                                            ->  Nested Loop  (cost=0.29..27.80 rows=1 width=48) (actual time=0.070..0.072 rows=0.00 loops=1)
+                                                  ->  CTE Scan on month_events reversal  (cost=0.00..19.48 rows=1 width=16) (actual time=0.070..0.070 rows=0.00 loops=1)
+                                                        Filter: (kind = 'reversal'::text)
+                                                        Rows Removed by Filter: 868
+                                                        Storage: Memory  Maximum Storage: 105kB
+                                                  ->  Index Scan using expense_shares_pkey on expense_shares s_1  (cost=0.29..8.30 rows=1 width=40) (never executed)
+                                                        Index Cond: (expense_event_id = reversal.reverses_event_id)
+                                                        Index Searches: 0
+                                ->  Hash  (cost=1.24..1.24 rows=1 width=16) (actual time=0.011..0.012 rows=1.00 loops=1)
+                                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                      Buffers: shared hit=1
+                                      ->  Seq Scan on group_members m  (cost=0.00..1.24 rows=1 width=16) (actual time=0.008..0.009 rows=1.00 loops=1)
+                                            Filter: (group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid)
+                                            Rows Removed by Filter: 18
+                                            Buffers: shared hit=1
+                    ->  Sort  (cost=284.25..284.29 rows=19 width=24) (actual time=1.752..1.756 rows=1.00 loops=1)
+                          Sort Key: pd.user_id
+                          Sort Method: quicksort  Memory: 25kB
+                          Buffers: shared hit=104
+                          ->  Subquery Scan on pd  (cost=283.37..283.84 rows=19 width=24) (actual time=1.721..1.725 rows=1.00 loops=1)
+                                Buffers: shared hit=104
+                                ->  HashAggregate  (cost=283.37..283.65 rows=19 width=24) (actual time=1.719..1.722 rows=1.00 loops=1)
+                                      Group Key: l.user_id
+                                      Batches: 1  Memory Usage: 32kB
+                                      Buffers: shared hit=104
+                                      ->  Hash Join  (cost=28.15..279.02 rows=869 width=24) (actual time=0.239..1.601 rows=868.00 loops=1)
+                                            Hash Cond: (l.event_id = me_1.id)
+                                            Buffers: shared hit=104
+                                            ->  Seq Scan on ledger_entries l  (cost=0.00..204.50 rows=10050 width=40) (actual time=0.010..0.483 rows=10050.00 loops=1)
+                                                  Buffers: shared hit=104
+                                            ->  Hash  (cost=17.32..17.32 rows=866 width=16) (actual time=0.205..0.205 rows=868.00 loops=1)
+                                                  Buckets: 1024  Batches: 1  Memory Usage: 49kB
+                                                  ->  CTE Scan on month_events me_1  (cost=0.00..17.32 rows=866 width=16) (actual time=0.001..0.078 rows=868.00 loops=1)
+                                                        Storage: Memory  Maximum Storage: 105kB
+              ->  Seq Scan on users u  (cost=0.00..1.19 rows=19 width=23) (actual time=0.008..0.009 rows=19.00 loops=1)
+                    Buffers: shared hit=1
+        ->  GroupAggregate  (cost=50.97..50.99 rows=1 width=24) (actual time=0.054..0.057 rows=0.00 loops=1)
+              Group Key: l_1.user_id
+              Buffers: shared hit=5
+              ->  Sort  (cost=50.97..50.97 rows=1 width=24) (actual time=0.054..0.055 rows=0.00 loops=1)
+                    Sort Key: l_1.user_id
+                    Sort Method: quicksort  Memory: 25kB
+                    Buffers: shared hit=5
+                    ->  Nested Loop  (cost=0.57..50.96 rows=1 width=24) (actual time=0.029..0.030 rows=0.00 loops=1)
+                          Buffers: shared hit=5
+                          ->  Index Only Scan using financial_events_month_idx on financial_events e  (cost=0.29..42.64 rows=1 width=16) (actual time=0.028..0.028 rows=0.00 loops=1)
+                                Index Cond: (effective_date < '2025-01-01'::date)
+                                Heap Fetches: 0
+                                Index Searches: 2
+                                Buffers: shared hit=5
+                          ->  Index Scan using ledger_entries_group_event_idx on ledger_entries l_1  (cost=0.29..8.30 rows=1 width=40) (never executed)
+                                Index Cond: ((group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid) AND (event_id = e.id))
+                                Index Searches: 0
+  ->  GroupAggregate  (cost=25.74..25.82 rows=1 width=24) (actual time=4.034..4.037 rows=1.00 loops=1)
+        Group Key: m_1.user_id
+        Buffers: shared hit=2748
+        ->  Sort  (cost=25.74..25.75 rows=4 width=56) (actual time=3.908..3.939 rows=868.00 loops=1)
+              Sort Key: m_1.user_id
+              Sort Method: quicksort  Memory: 65kB
+              Buffers: shared hit=2748
+              ->  Nested Loop Left Join  (cost=1.54..25.70 rows=4 width=56) (actual time=0.265..3.720 rows=868.00 loops=1)
+                    Buffers: shared hit=2748
+                    ->  Hash Right Join  (cost=1.25..20.91 rows=4 width=64) (actual time=0.248..2.338 rows=868.00 loops=1)
+                          Hash Cond: (ee.payer_id = m_1.user_id)
+                          Buffers: shared hit=144
+                          ->  CTE Scan on expense_effects ee  (cost=0.00..17.34 rows=867 width=64) (actual time=0.222..2.157 rows=868.00 loops=1)
+                                Storage: Memory  Maximum Storage: 78kB
+                                Buffers: shared hit=143
+                          ->  Hash  (cost=1.24..1.24 rows=1 width=16) (actual time=0.008..0.009 rows=1.00 loops=1)
+                                Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                Buffers: shared hit=1
+                                ->  Seq Scan on group_members m_1  (cost=0.00..1.24 rows=1 width=16) (actual time=0.005..0.006 rows=1.00 loops=1)
+                                      Filter: (group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid)
+                                      Rows Removed by Filter: 18
+                                      Buffers: shared hit=1
+                    ->  Index Scan using expenses_pkey on expenses x  (cost=0.29..1.20 rows=1 width=24) (actual time=0.001..0.001 rows=1.00 loops=868)
+                          Index Cond: (event_id = ee.event_id)
+                          Index Searches: 868
+                          Buffers: shared hit=2604
+  SubPlan 4
+    ->  Aggregate  (cost=0.12..0.13 rows=1 width=32) (actual time=0.183..0.184 rows=1.00 loops=1)
+          Buffers: shared hit=1
+          ->  CTE Scan on settlement_activity sa  (cost=0.00..0.11 rows=1 width=32) (actual time=0.181..0.181 rows=0.00 loops=1)
+                Filter: (from_user_id = m.user_id)
+                Storage: Memory  Maximum Storage: 17kB
+                Buffers: shared hit=1
+  SubPlan 5
+    ->  Aggregate  (cost=0.12..0.13 rows=1 width=32) (actual time=0.002..0.002 rows=1.00 loops=1)
+          ->  CTE Scan on settlement_activity sa_1  (cost=0.00..0.11 rows=1 width=32) (actual time=0.000..0.000 rows=0.00 loops=1)
+                Filter: (to_user_id = m.user_id)
+                Storage: Memory  Maximum Storage: 17kB
+Planning:
+  Buffers: shared hit=46
+Planning Time: 1.509 ms
+Execution Time: 8.862 ms
+
+monthly_category_totals: n=30, client wall p50=2.883ms p95=3.583ms
+GroupAggregate  (cost=572.30..572.63 rows=7 width=18) (actual time=2.961..2.972 rows=7.00 loops=1)
+  Group Key: c.name
+  Buffers: shared hit=194
+  CTE month_events
+    ->  Bitmap Heap Scan on financial_events  (cost=43.33..192.48 rows=866 width=32) (actual time=0.099..0.263 rows=868.00 loops=1)
+          Recheck Cond: ((group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid) AND (effective_date >= '2025-01-01'::date) AND (effective_date < '2025-02-01'::date))
+          Heap Blocks: exact=40
+          Buffers: shared hit=50
+          ->  Bitmap Index Scan on financial_events_month_idx  (cost=0.00..43.11 rows=866 width=0) (actual time=0.084..0.085 rows=868.00 loops=1)
+                Index Cond: ((group_id = '587a8d47-a428-4214-a51c-036973950191'::uuid) AND (effective_date >= '2025-01-01'::date) AND (effective_date < '2025-02-01'::date))
+                Index Searches: 1
+                Buffers: shared hit=10
+  ->  Sort  (cost=379.82..379.89 rows=30 width=42) (actual time=2.798..2.838 rows=874.00 loops=1)
+        Sort Key: c.name
+        Sort Method: quicksort  Memory: 52kB
+        Buffers: shared hit=194
+        ->  Hash Right Join  (cost=29.30..379.08 rows=30 width=42) (actual time=0.587..2.683 rows=874.00 loops=1)
+              Hash Cond: ("*SELECT* 1".category_id = c.id)
+              Buffers: shared hit=194
+              ->  Append  (cost=28.15..375.60 rows=867 width=34) (actual time=0.565..2.531 rows=868.00 loops=1)
+                    Buffers: shared hit=193
+                    ->  Subquery Scan on "*SELECT* 1"  (cost=28.15..328.30 rows=866 width=34) (actual time=0.565..2.262 rows=868.00 loops=1)
+                          Buffers: shared hit=193
+                          ->  Hash Join  (cost=28.15..319.63 rows=866 width=34) (actual time=0.564..2.194 rows=868.00 loops=1)
+                                Hash Cond: (x.event_id = me.id)
+                                Buffers: shared hit=193
+                                ->  Seq Scan on expenses x  (cost=0.00..243.12 rows=10012 width=26) (actual time=0.005..0.508 rows=10012.00 loops=1)
+                                      Buffers: shared hit=143
+                                ->  Hash  (cost=17.32..17.32 rows=866 width=16) (actual time=0.550..0.551 rows=868.00 loops=1)
+                                      Buckets: 1024  Batches: 1  Memory Usage: 49kB
+                                      Buffers: shared hit=50
+                                      ->  CTE Scan on month_events me  (cost=0.00..17.32 rows=866 width=16) (actual time=0.101..0.446 rows=868.00 loops=1)
+                                            Storage: Memory  Maximum Storage: 50kB
+                                            Buffers: shared hit=50
+                    ->  Subquery Scan on "*SELECT* 2"  (cost=0.58..42.97 rows=1 width=34) (actual time=0.212..0.213 rows=0.00 loops=1)
+                          ->  Nested Loop  (cost=0.58..42.96 rows=1 width=34) (actual time=0.211..0.213 rows=0.00 loops=1)
+                                ->  Nested Loop  (cost=0.30..41.36 rows=1 width=26) (actual time=0.211..0.212 rows=0.00 loops=1)
+                                      ->  CTE Scan on month_events reversal  (cost=0.00..17.32 rows=866 width=32) (actual time=0.001..0.043 rows=868.00 loops=1)
+                                            Storage: Memory  Maximum Storage: 50kB
+                                      ->  Memoize  (cost=0.30..1.21 rows=1 width=26) (actual time=0.000..0.000 rows=0.00 loops=868)
+                                            Cache Key: reversal.reverses_event_id
+                                            Cache Mode: logical
+                                            Hits: 867  Misses: 1  Evictions: 0  Overflows: 0  Memory Usage: 1kB
+                                            ->  Index Scan using expenses_pkey on expenses original  (cost=0.29..1.20 rows=1 width=26) (actual time=0.004..0.004 rows=0.00 loops=1)
+                                                  Index Cond: (event_id = reversal.reverses_event_id)
+                                                  Index Searches: 0
+                                ->  Index Scan using financial_events_pkey on financial_events re  (cost=0.29..1.16 rows=1 width=16) (never executed)
+                                      Index Cond: (id = reversal.id)
+                                      Filter: (kind = 'reversal'::text)
+                                      Index Searches: 0
+              ->  Hash  (cost=1.07..1.07 rows=7 width=10) (actual time=0.015..0.015 rows=7.00 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on categories c  (cost=0.00..1.07 rows=7 width=10) (actual time=0.009..0.010 rows=7.00 loops=1)
+                          Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=12
+Planning Time: 0.898 ms
+Execution Time: 3.047 ms

@@ -10,7 +10,7 @@ import java.util.UUID
 data class ActiveCapture(val accountId: String, val groupId: String, val expiresAtEpochMs: Long, val allowlistedPackages: Set<String>)
 
 /** App-private, account-scoped store. Raw notification text is never passed to this class. */
-class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_capture.db", null, 1) {
+class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_capture.db", null, 2) {
     private val appContext = context.applicationContext
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -25,12 +25,17 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
             state TEXT NOT NULL DEFAULT 'needs_review', user_edited INTEGER NOT NULL DEFAULT 0,
             committed_event_id TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
             UNIQUE(account_id,source_package,source_key_hash))""")
+        createClientState(db)
         db.execSQL("CREATE INDEX drafts_inbox_idx ON payment_drafts(account_id,state,observed_at DESC)")
         db.execSQL("CREATE INDEX drafts_reference_idx ON payment_drafts(account_id,reference_fingerprint) WHERE reference_fingerprint IS NOT NULL")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Add forward-only local migrations here; never delete drafts implicitly.
+        if (oldVersion < 2) createClientState(db)
+    }
+
+    private fun createClientState(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS client_state(account_id TEXT PRIMARY KEY,state_json TEXT NOT NULL)")
     }
 
     fun saveConsent(accountId: String, selectedSources: Set<String>) {
@@ -102,7 +107,7 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
             val warning = hasSimilarDraft(account.accountId, account.groupId, candidate, candidate.sourcePackage, sourceHash)
             if (prior != null) {
                 if (prior.second == "needs_review" && !prior.third) {
-                    db.update("payment_drafts", candidateValues(account, candidate, warning, now),
+                    db.update("payment_drafts", candidateValues(account, candidate, warning, now).apply { remove("captured_group_id") },
                         "id=? AND state='needs_review' AND user_edited=0", arrayOf(prior.first))
                 }
                 db.setTransactionSuccessful()
@@ -125,6 +130,7 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
         if (appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CURRENT_ACCOUNT, null) == accountId) {
             setCurrentAccount(null)
         }
+        writableDatabase.delete("client_state", "account_id=?", arrayOf(accountId))
         writableDatabase.delete("payment_drafts", "account_id=?", arrayOf(accountId))
         writableDatabase.delete("capture_settings", "account_id=?", arrayOf(accountId))
     }

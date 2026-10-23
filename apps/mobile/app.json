@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Splix",
+    "slug": "splix",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.splix.app",
+      "allowBackup": false,
+      "predictiveBackGestureEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "name": "Splix"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      "expo-sharing",
+      "./plugins/withPrivateCapture",
+      "expo-router",
+      "expo-splash-screen"
+    ],
+    "scheme": "splix",
+    "experiments": {
+      "tsconfigPaths": true,
+      "typedRoutes": true
+    }
+  }
+}

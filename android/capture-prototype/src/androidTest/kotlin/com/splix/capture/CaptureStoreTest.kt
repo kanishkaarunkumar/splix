@@ -32,6 +32,18 @@ class CaptureStoreTest {
             assertTrue(store.hasDuplicateWarning(account))
             assertEquals(0, store.draftCount(otherAccount))
 
+            // Source updates after active-group switching must not reassign older drafts.
+            val nextGroup = UUID.randomUUID().toString()
+            store.activate(account, nextGroup, System.currentTimeMillis() + 120_000)
+            store.saveCandidate(store.activeCapture()!!, "opaque-source-key", first.copy(amountPaise=13000))
+            store.readableDatabase.rawQuery("SELECT captured_group_id FROM payment_drafts WHERE account_id=? ORDER BY created_at LIMIT 1", arrayOf(account)).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(group, cursor.getString(0))
+            }
+            store.readableDatabase.rawQuery("SELECT count(*) FROM client_state", null).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+            }
+
             assertNull(store.activeCapture(System.currentTimeMillis() + CaptureStore.MAX_ACTIVE_MS + 1))
             store.activate(account, group, System.currentTimeMillis() + 60_000)
             store.setCurrentAccount(otherAccount)

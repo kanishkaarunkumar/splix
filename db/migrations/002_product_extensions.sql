@@ -499,7 +499,6 @@ REVOKE ALL ON FUNCTION check_split_preset_member_write() FROM PUBLIC;
 REVOKE ALL ON FUNCTION check_split_preset_member_delete() FROM PUBLIC;
 REVOKE ALL ON FUNCTION enforce_group_member_cap() FROM PUBLIC;
 REVOKE ALL ON FUNCTION reject_archived_financial_event() FROM PUBLIC;
-REVOKE ALL ON FUNCTION validate_financial_correction_link() FROM PUBLIC;
 REVOKE ALL ON FUNCTION post_weighted_expense(uuid,uuid,uuid,date,text,smallint,bigint,text,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION post_expense_with_note(uuid,uuid,uuid,date,text,smallint,bigint,text,jsonb,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION correct_expense(uuid,uuid,uuid,text,date,text,smallint,bigint,text,uuid,jsonb,text) FROM PUBLIC;

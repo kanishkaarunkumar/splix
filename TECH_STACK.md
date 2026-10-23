@@ -1,26 +1,26 @@
 # Splix — Technology Stack
 
-## Proposed stack
+## Implemented development stack and remaining choices
 
-Android-first replaces the browser-first plan. Only SQL/documentation currently exists. The following packages, versions, scripts, and deployment choices are proposals, not installed tooling. Verify supported versions and native-module compatibility when scaffolding; pin resolved dependencies.
+October 22, 2026: an Expo SDK 58 / React Native 0.88 Android client and FastAPI memory adapter are implemented. Frontend and Python lockfiles pin resolved dependencies. PostgreSQL migrations are tested independently; a persistent API repository and Android device verification remain release gates. See [executed evidence](docs/evidence/person-3-handoff.md).
 
 | Layer | Proposed choice | Purpose |
 | --- | --- | --- |
 | Mobile | React Native + TypeScript with native Android project | Screens, navigation, account/group flows, inbox, balances, reports, closeout. |
-| Navigation | React Navigation | Typed routes, authenticated navigation, safe review deep links. |
+| Navigation | Expo Router with native stacks | Typed routes, authenticated navigation, safe review deep links. |
 | Native capture | Kotlin `NotificationListenerService` and React Native module | Consent/permission checks, source allowlist, transient parsing, background ingestion. Do not assume JS is running. |
 | Local storage | SQLite behind a shared native/JS repository contract | Private account-scoped drafts, active settings, source deduplication, durable mutations. Prototype one compatible access/migration approach; avoid competing schemas/connections. |
 | Credentials | Android Keystore-backed secure storage | Opaque session credentials, never plain SQLite or AsyncStorage. |
 | Prompts | Android local notifications plus in-app inbox | Permission-aware review prompts, generic lock-screen text, inbox fallback; no push service required. |
 | API | Python 3.12+, FastAPI, Pydantic | Identity, authorization, groups, financial services, presets, reporting/CSV, and generated OpenAPI. |
 | Validation | Pydantic request models and shared JSON contracts | Request validation, safe serialization, native bridge contracts. |
-| Database | PostgreSQL 18 baseline, explicit SQL via `pg` | Constraints, ledger, transactions, locks, reporting, indexes. |
+| Database | PostgreSQL 18 SQL; API repository pending (`psycopg` used by integration tests) | Constraints, ledger, transactions, locks, reporting, indexes. |
 | Migrations | Numbered SQL plus a runner selected during setup | Apply existing `001` unchanged; add ordered migrations for product extensions. |
 | Auth | Argon2id and revocable server-side opaque sessions | Mobile bearer credential over HTTPS, expiry, recovery, logout/revocation; not browser-cookie-only auth. |
 | Export | API-generated CSV plus mobile file/share flow | Report parity and spreadsheet-formula-safe text. |
-| Tests | pytest, HTTPX, Android JUnit/instrumentation, Maestro | Money/API/database tests, Kotlin parser/listener tests, mobile journeys. |
+| Tests | pytest, HTTPX, Vitest, Playwright; Android JUnit/instrumentation pending execution | Money/API/database tests, Kotlin parser/listener tests, mobile journeys. |
 | Environment | Docker Compose PostgreSQL, Python virtual environment, Android Studio SDK/emulator/device | Reproducible API/database setup and native builds. |
-| Quality | Ruff, mypy, Android lint, CI | Pin compatible tooling; fresh-database tests and bounded emulator smoke checks. |
+| Quality | Ruff, TypeScript, Expo ESLint and CI; native lint/device checks pending | Pin compatible tooling; fresh-database tests and bounded emulator smoke checks. |
 
 A custom native build is required; a generic preview app is not the capture implementation. iOS is a later client with user-initiated sharing/import, not equivalent notification monitoring. A web app is not an initial deliverable.
 
@@ -60,7 +60,7 @@ Keep existing `db/` and `docs/evidence/`. Add Compose, `.env.example`, lockfile,
 
 ## Development and delivery
 
-Planned scripts: `uv run uvicorn app.main:app --reload`, `start:mobile`, `android`, `pytest`, `pytest tests/database`, `ruff check`, `db:migrate`, and `db:seed`. Document JDK/SDK/device setup. An emulator is not proof of real payment-app support.
+The root scripts now provide `mobile`, `android`, `web`, `typecheck`, `lint`, `test`, and `build`; the API uses `uv run`. Native projects are generated from the Expo configuration and local module. The original planned scripts were: `uv run uvicorn app.main:app --reload`, `start:mobile`, `android`, `pytest`, `pytest tests/database`, `ruff check`, `db:migrate`, and `db:seed`. Document JDK/SDK/device setup. An emulator is not proof of real payment-app support.
 
 Configure database/session/recovery/API/deep-link settings through environment variables. A physical phone needs a reachable HTTPS API; its `localhost` is not the development host. PostgreSQL is private to the API. Use separate migration/runtime roles, deliberate controlled grants, fresh CI databases, persistent storage, tested restore, and signing keys outside Git.
 

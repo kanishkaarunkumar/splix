@@ -10,3 +10,14 @@ android/**/build/
 __pycache__/
 .pytest_cache/
 .venv/
+node_modules/
+.expo/
+.dist/
+dist/
+playwright-report/
+test-results/
+apps/mobile/android/
+apps/mobile/ios/
+*.egg-info/
+
+.claude/

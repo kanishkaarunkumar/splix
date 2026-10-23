@@ -1,0 +1,14 @@
+{
+  "name": "splix",
+  "private": true,
+  "packageManager": "pnpm@10.31.0",
+  "scripts": {
+    "mobile": "pnpm --dir apps/mobile start",
+    "android": "pnpm --dir apps/mobile android",
+    "web": "pnpm --dir apps/mobile web",
+    "typecheck": "pnpm --dir apps/mobile typecheck",
+    "test": "pnpm --dir apps/mobile test",
+    "build": "pnpm --dir apps/mobile build:web",
+    "lint": "pnpm --dir apps/mobile lint"
+  }
+}

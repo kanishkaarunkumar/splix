@@ -1,29 +1,1087 @@
 openapi: 3.1.0
 info:
-  title: SplitWise+ FastAPI
+  title: Splix API
   version: 1.1.0
-  description: FastAPI service for authenticated mobile workflows, financial replay, groups, reports, and CSV export.
-servers:
-  - url: /api/v1
 paths:
-  /auth/register: { post: { summary: Register and start a session } }
-  /auth/login: { post: { summary: Log in } }
-  /auth/logout: { post: { summary: Log out } }
-  /auth/recovery/request: { post: { summary: Request account recovery } }
-  /auth/recovery/confirm: { post: { summary: Confirm account recovery } }
-  /me: { get: { summary: Current user } }
-  /groups: { get: { summary: List groups }, post: { summary: Create group } }
-  /groups/{id}/members: { post: { summary: Add an existing registered user } }
-  /groups/{id}/join-codes: { post: { summary: Create an expiring owner-controlled join code } }
-  /groups/join: { post: { summary: Join through a valid code } }
-  /groups/{id}/archive: { post: { summary: Archive a group } }
-  /groups/{id}/expenses: { post: { summary: Post an expense, requires Idempotency-Key } }
-  /groups/{id}/expenses/{eventId}/corrections: { post: { summary: Reverse and replace an expense, requires Idempotency-Key } }
-  /groups/{id}/settlements: { post: { summary: Record a settlement, requires Idempotency-Key } }
-  /groups/{id}/balances: { get: { summary: Read current balances } }
-  /groups/{id}/settlement-suggestions: { get: { summary: Calculate deterministic debt suggestions } }
-  /groups/{id}/history: { get: { summary: Read chronological event history } }
-  /groups/{id}/history/search: { get: { summary: Search history with bounded pagination } }
-  /groups/{id}/explanations: { get: { summary: Explain member balance contributions } }
-  /groups/{id}/presets: { get: { summary: List presets }, post: { summary: Create a validated split preset } }
-  /groups/{id}/reports/monthly: { get: { summary: Return monthly JSON or CSV report } }
+  /health:
+    get:
+      summary: Health
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/v1/auth/register:
+    post:
+      summary: Register
+      operationId: register_api_v1_auth_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Registration'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      operationId: login_api_v1_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/logout:
+    post:
+      summary: Logout
+      operationId: logout_api_v1_auth_logout_post
+      responses:
+        '204':
+          description: Successful Response
+  /api/v1/auth/recovery/request:
+    post:
+      summary: Recovery Request
+      operationId: recovery_request_api_v1_auth_recovery_request_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Email'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/recovery/confirm:
+    post:
+      summary: Recovery Confirm
+      operationId: recovery_confirm_api_v1_auth_recovery_confirm_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Recovery'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/me:
+    get:
+      summary: Me
+      operationId: me_api_v1_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    delete:
+      summary: Delete Me
+      operationId: delete_me_api_v1_me_delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    patch:
+      summary: Profile
+      operationId: profile_api_v1_me_patch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups:
+    get:
+      summary: Groups
+      operationId: groups_api_v1_groups_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Create Group
+      operationId: create_group_api_v1_groups_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Name'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/members:
+    post:
+      summary: Add Member
+      operationId: add_member_api_v1_groups__group_id__members_post
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Email'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/archive:
+    post:
+      summary: Archive
+      operationId: archive_api_v1_groups__group_id__archive_post
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/join-codes:
+    post:
+      summary: Join Code
+      operationId: join_code_api_v1_groups__group_id__join_codes_post
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: ttl_seconds
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 86400
+          title: Ttl Seconds
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/join:
+    post:
+      summary: Join
+      operationId: join_api_v1_groups_join_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Join'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/join-requests:
+    get:
+      summary: Join Requests
+      operationId: join_requests_api_v1_groups__group_id__join_requests_get
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/join-requests/{request_id}:
+    post:
+      summary: Decide Join
+      operationId: decide_join_api_v1_groups__group_id__join_requests__request_id__post
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: request_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Request Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Decision'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/join-codes/{code}/revoke:
+    post:
+      summary: Revoke Join
+      operationId: revoke_join_api_v1_groups_join_codes__code__revoke_post
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Code
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/balances:
+    get:
+      summary: Balances
+      operationId: balances_api_v1_groups__group_id__balances_get
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/expenses:
+    post:
+      summary: Expense
+      operationId: expense_api_v1_groups__group_id__expenses_post
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Expense'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/settlements:
+    post:
+      summary: Settlement
+      operationId: settlement_api_v1_groups__group_id__settlements_post
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Settlement'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/settlement-suggestions:
+    get:
+      summary: Suggestions
+      operationId: suggestions_api_v1_groups__group_id__settlement_suggestions_get
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/history:
+    get:
+      summary: History
+      operationId: history_api_v1_groups__group_id__history_get
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Q
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 25
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/history/search:
+    get:
+      summary: History Search
+      operationId: history_search_api_v1_groups__group_id__history_search_get
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Q
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 25
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/explanations:
+    get:
+      summary: Explanations
+      operationId: explanations_api_v1_groups__group_id__explanations_get
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/presets:
+    post:
+      summary: Preset
+      operationId: preset_api_v1_groups__group_id__presets_post
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Preset'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      summary: Presets
+      operationId: presets_api_v1_groups__group_id__presets_get
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/reports/monthly:
+    get:
+      summary: Monthly Report
+      operationId: monthly_report_api_v1_groups__group_id__reports_monthly_get
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: month
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Month
+      - name: format
+        in: query
+        required: false
+        schema:
+          enum:
+          - json
+          - csv
+          type: string
+          default: json
+          title: Format
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/groups/{group_id}/expenses/{event_id}/corrections:
+    post:
+      summary: Correction
+      operationId: correction_api_v1_groups__group_id__expenses__event_id__corrections_post
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Event Id
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Correction'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Correction:
+      properties:
+        replacement:
+          $ref: '#/components/schemas/Expense'
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 1
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - replacement
+      - reason
+      title: Correction
+    Credentials:
+      properties:
+        email:
+          type: string
+          maxLength: 254
+          minLength: 3
+          title: Email
+        password:
+          type: string
+          maxLength: 1024
+          minLength: 8
+          title: Password
+      additionalProperties: false
+      type: object
+      required:
+      - email
+      - password
+      title: Credentials
+    Decision:
+      properties:
+        approve:
+          type: boolean
+          title: Approve
+      additionalProperties: false
+      type: object
+      required:
+      - approve
+      title: Decision
+    Email:
+      properties:
+        email:
+          type: string
+          maxLength: 254
+          minLength: 3
+          title: Email
+      additionalProperties: false
+      type: object
+      required:
+      - email
+      title: Email
+    Expense:
+      properties:
+        amountPaise:
+          type: string
+          maxLength: 16
+          pattern: ^[0-9]+$
+          title: Amountpaise
+        payerId:
+          type: string
+          title: Payerid
+        title:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Title
+        category:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Category
+        effectiveDate:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          title: Effectivedate
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
+        splitMethod:
+          type: string
+          enum:
+          - equal
+          - percentage
+          - weighted
+          - exact
+          title: Splitmethod
+        participantIds:
+          items:
+            type: string
+          type: array
+          maxItems: 50
+          title: Participantids
+        percentages:
+          items:
+            $ref: '#/components/schemas/Percentage'
+          type: array
+          maxItems: 50
+          title: Percentages
+        weights:
+          items:
+            $ref: '#/components/schemas/Weight'
+          type: array
+          maxItems: 50
+          title: Weights
+        shares:
+          items:
+            $ref: '#/components/schemas/Share'
+          type: array
+          maxItems: 50
+          title: Shares
+      additionalProperties: false
+      type: object
+      required:
+      - amountPaise
+      - payerId
+      - title
+      - category
+      - effectiveDate
+      - splitMethod
+      title: Expense
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    Join:
+      properties:
+        code:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Code
+      additionalProperties: false
+      type: object
+      required:
+      - code
+      title: Join
+    Name:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Name
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      title: Name
+    Percentage:
+      properties:
+        userId:
+          type: string
+          title: Userid
+        basisPoints:
+          type: integer
+          maximum: 10000.0
+          minimum: 0.0
+          title: Basispoints
+      additionalProperties: false
+      type: object
+      required:
+      - userId
+      - basisPoints
+      title: Percentage
+    Preset:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Name
+        splitMethod:
+          type: string
+          enum:
+          - equal
+          - percentage
+          - weighted
+          - exact
+          title: Splitmethod
+        participantIds:
+          items:
+            type: string
+          type: array
+          maxItems: 50
+          minItems: 1
+          title: Participantids
+        weights:
+          items:
+            $ref: '#/components/schemas/Weight'
+          type: array
+          maxItems: 50
+          title: Weights
+        percentages:
+          items:
+            $ref: '#/components/schemas/Percentage'
+          type: array
+          maxItems: 50
+          title: Percentages
+        shares:
+          items:
+            $ref: '#/components/schemas/Share'
+          type: array
+          maxItems: 50
+          title: Shares
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - splitMethod
+      - participantIds
+      title: Preset
+    Profile:
+      properties:
+        displayName:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Displayname
+      additionalProperties: false
+      type: object
+      required:
+      - displayName
+      title: Profile
+    Recovery:
+      properties:
+        token:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Token
+        password:
+          type: string
+          maxLength: 1024
+          minLength: 8
+          title: Password
+      additionalProperties: false
+      type: object
+      required:
+      - token
+      - password
+      title: Recovery
+    Registration:
+      properties:
+        email:
+          type: string
+          maxLength: 254
+          minLength: 3
+          title: Email
+        password:
+          type: string
+          maxLength: 1024
+          minLength: 8
+          title: Password
+        displayName:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Displayname
+      additionalProperties: false
+      type: object
+      required:
+      - email
+      - password
+      - displayName
+      title: Registration
+    Settlement:
+      properties:
+        amountPaise:
+          type: string
+          maxLength: 16
+          pattern: ^[0-9]+$
+          title: Amountpaise
+        fromUserId:
+          type: string
+          title: Fromuserid
+        toUserId:
+          type: string
+          title: Touserid
+        effectiveDate:
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          title: Effectivedate
+      additionalProperties: false
+      type: object
+      required:
+      - amountPaise
+      - fromUserId
+      - toUserId
+      - effectiveDate
+      title: Settlement
+    Share:
+      properties:
+        userId:
+          type: string
+          title: Userid
+        amountPaise:
+          type: string
+          maxLength: 16
+          pattern: ^[0-9]+$
+          title: Amountpaise
+      additionalProperties: false
+      type: object
+      required:
+      - userId
+      - amountPaise
+      title: Share
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    Weight:
+      properties:
+        userId:
+          type: string
+          title: Userid
+        weight:
+          type: integer
+          maximum: 1000000.0
+          minimum: 1.0
+          title: Weight
+      additionalProperties: false
+      type: object
+      required:
+      - userId
+      - weight
+      title: Weight

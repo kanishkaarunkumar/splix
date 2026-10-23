@@ -6,6 +6,10 @@ Use placeholder names until team members are assigned. As of October 20, 2026, f
 
 Milestones follow [PLAN.md](PLAN.md), not fixed deadlines. Later-release features have no MVP implementation assignment.
 
+## Integration update — October 22, 2026
+
+Person 2 revision `7775e91` is integrated with Person 1 and the Person 3 mobile implementation on `main`. See [Person 3 handoff](docs/evidence/person-3-handoff.md) for delivered screens, queue/native contracts, actual verification and uncompleted release/device/persistence gates. The original checklists below are acceptance criteria; they must not be read as current completion evidence.
+
 ## Ownership
 
 | Person | Responsibility | Remaining deliverables | Reviewer |

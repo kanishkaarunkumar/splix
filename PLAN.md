@@ -8,14 +8,13 @@ The differentiator is optional Active Group Mode: a supported outgoing UPI-app n
 
 See [architecture](ARCHITECTURE.md), [technology choices](TECH_STACK.md), [remaining ownership](PEOPLE.md), and the [capture specification](docs/payment-capture.md).
 
-## Current implementation status — October 20, 2026
+## Current implementation status — October 22, 2026
 
-- Existing source: financial-schema migration; expense/settlement/reversal functions; immutable-ledger guards; balance/report SQL; seed categories, users, group, and memberships.
-- Not verified: migration execution, database integration/concurrency tests, query-plan measurements, and backup/restore. Written SQL is not runtime evidence.
-- Missing: mobile app, native capture, offline queue, and production PostgreSQL wiring. The FastAPI branch now provides the Person 2 API/authentication, split-allocation utilities, replay behavior, reports/CSV, groups, presets, and correction endpoints.
-- Partial foundations: database-backed transactions, schema extensions, and real-connection API/concurrency evidence still need integration with Person 1's SQL. The seed contains placeholder password hashes and no financial events.
-
-Everything below is planned unless explicitly identified as existing SQL. Do not mark documentation as implementation.
+- Person 1 database/capture source and Person 2 FastAPI workflows are integrated on `main`. The native mobile client is in `apps/mobile`, with accounts/groups, split forms, balances, settlements/corrections, private review, local queue, presets, reports/CSV and device-scoped closeout.
+- API review corrected bearer-session revocation, typed request validation, atomic correction/replay, join approvals, archive guards, correction-aware reports and CSV serialization. It remains an in-memory development adapter; PostgreSQL wiring and trusted recovery delivery are still required before pilot/deployment.
+- PostgreSQL 18 migrations/seed/invariants/runtime privileges, real settlement races and report boundaries have been executed. The 10,000-event query workload and dump/restore have measured evidence.
+- Mobile money/queue tests and a mobile-sized browser manual journey pass. Browser and Android JS bundles export; Expo native prebuild and capture autolinking succeed. Native APK compilation/instrumentation, live payment-app capture, device/accessibility tests, retention and release/pilot evidence remain pending.
+- See [setup](README.md), [mobile guide](docs/mobile-guide.md) and [detailed verification with limits](docs/evidence/person-3-handoff.md). The acceptance criteria below remain requirements, not an assertion that every release gate has passed.
 
 ## Core app requirements
 
