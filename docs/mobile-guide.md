@@ -51,7 +51,7 @@ To correct an expense, open its history entry, enter the replacement and a reaso
 
 ## Private payment suggestions
 
-### Inline replies (next APK)
+### Inline replies (APK 1.0.1)
 
 The new native source supports Android inline replies during Active Group Mode. Enable **Allow payment prompts** as well as Android notification-listener access. These are separate permissions; Android 13+ needs permission for Splix to show its own notifications. If prompts are off, private Inbox suggestions still work.
 
@@ -59,7 +59,7 @@ A newly detected outgoing payment produces a private notification with **Add det
 
 Prompts hide payment details on the lock screen, expire with the active session, and cancel on pause, stop, account change, local deletion or draft disposition/confirmation. Replies are tied to one account and draft; stale, queued, cross-account and changed-group actions are rejected. Source updates refresh an existing prompt silently, without recreating a dismissed notification or overwriting typed details. Replies work without JS or network access; posting still needs explicit confirmation and API validation.
 
-Timing and coverage depend on the source app sending a readable notification, Android delivery, channel settings, Do Not Disturb and device power controls. Every UPI transaction is not guaranteed. This feature needs the next custom APK; the delivered APK was deliberately not rebuilt. Real-device notification delivery/reply checks remain outstanding.
+Timing and coverage depend on the source app sending a readable notification, Android delivery, channel settings, Do Not Disturb and device power controls. Every UPI transaction is not guaranteed. This feature is included in custom APK 1.0.1 (Android version code 2). Real-device notification delivery/reply checks remain outstanding.
 
 ### Capture and review
 
