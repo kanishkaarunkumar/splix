@@ -47,7 +47,7 @@ export function ExpenseScreen({ route, navigation }: ScreenProps<"Expense">) {
         }
       : undefined);
   const [title, setTitle] = useState(
-      original?.title || capture?.payeeLabel || "",
+      original?.title || capture?.enteredTitle || capture?.payeeLabel || "",
     ),
     [amount, setAmount] = useState(
       original

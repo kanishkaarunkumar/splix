@@ -8,9 +8,10 @@ import org.json.JSONArray
 import java.util.UUID
 
 data class ActiveCapture(val accountId: String, val groupId: String, val expiresAtEpochMs: Long, val allowlistedPackages: Set<String>)
+data class CapturedDraft(val id: String, val created: Boolean)
 
 /** App-private, account-scoped store. Raw notification text is never passed to this class. */
-class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_capture.db", null, 2) {
+class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_capture.db", null, 3) {
     private val appContext = context.applicationContext
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -23,7 +24,7 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
             payee_label TEXT, observed_at INTEGER NOT NULL, captured_group_id TEXT NOT NULL,
             confidence TEXT NOT NULL, duplicate_warning INTEGER NOT NULL DEFAULT 0,
             state TEXT NOT NULL DEFAULT 'needs_review', user_edited INTEGER NOT NULL DEFAULT 0,
-            committed_event_id TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+            committed_event_id TEXT, entered_title TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
             UNIQUE(account_id,source_package,source_key_hash))""")
         createClientState(db)
         db.execSQL("CREATE INDEX drafts_inbox_idx ON payment_drafts(account_id,state,observed_at DESC)")
@@ -32,6 +33,7 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) createClientState(db)
+        if (oldVersion < 3) db.execSQL("ALTER TABLE payment_drafts ADD COLUMN entered_title TEXT")
     }
 
     private fun createClientState(db: SQLiteDatabase) {
@@ -47,6 +49,7 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
             putNull("active_group_id"); putNull("active_until"); put("paused", 1)
         }
         writableDatabase.insertWithOnConflict("capture_settings", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+        PaymentPrompts.cancelAccount(appContext, accountId)
     }
 
     fun activate(accountId: String, groupId: String, expiresAtEpochMs: Long) {
@@ -56,12 +59,19 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
         require(writableDatabase.update("capture_settings", values, "account_id=? AND consent_at>0", arrayOf(accountId)) == 1) {
             "Explicit capture consent is required first"
         }
+        PaymentPrompts.cancelAccount(appContext, accountId)
     }
 
-    fun pause(accountId: String) = updateSettings(accountId, ContentValues().apply { put("paused", 1) })
-    fun stop(accountId: String) = updateSettings(accountId, ContentValues().apply {
+    fun pause(accountId: String) {
+        updateSettings(accountId, ContentValues().apply { put("paused", 1) })
+        PaymentPrompts.cancelAccount(appContext, accountId)
+    }
+    fun stop(accountId: String) {
+        updateSettings(accountId, ContentValues().apply {
         putNull("active_group_id"); putNull("active_until"); put("paused", 1)
-    })
+        })
+        PaymentPrompts.cancelAccount(appContext, accountId)
+    }
 
     /** Logout clears the active device slot; this account's drafts remain isolated. */
     fun logout(accountId: String) {
@@ -90,13 +100,13 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
         }
     }
 
-    @Synchronized fun saveCandidate(account: ActiveCapture, sourceKey: String, candidate: CaptureCandidate) {
+    @Synchronized fun saveCandidate(account: ActiveCapture, sourceKey: String, candidate: CaptureCandidate): CapturedDraft? {
         val db = writableDatabase
         db.beginTransaction()
         try {
-            val latest = activeCapture() ?: return
+            val latest = activeCapture() ?: return null
             if (latest.accountId != account.accountId || latest.groupId != account.groupId
-                || candidate.sourcePackage !in latest.allowlistedPackages || latest.expiresAtEpochMs <= System.currentTimeMillis()) return
+                || candidate.sourcePackage !in latest.allowlistedPackages || latest.expiresAtEpochMs <= System.currentTimeMillis()) return null
             val sourceHash = CaptureParser.sha256(account.accountId + "\u0000" + candidate.sourcePackage + "\u0000" + sourceKey.take(512))
             val now = System.currentTimeMillis()
             val prior = db.query("payment_drafts", arrayOf("id", "state", "user_edited"),
@@ -109,24 +119,54 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
                 if (prior.second == "needs_review" && !prior.third) {
                     db.update("payment_drafts", candidateValues(account, candidate, warning, now).apply { remove("captured_group_id") },
                         "id=? AND state='needs_review' AND user_edited=0", arrayOf(prior.first))
+                    db.setTransactionSuccessful()
+                    return CapturedDraft(prior.first, false)
                 }
                 db.setTransactionSuccessful()
-                return
+                return null
             }
+            val draftId = UUID.randomUUID().toString()
             val values = candidateValues(account, candidate, warning, now).apply {
-                put("id", UUID.randomUUID().toString()); put("account_id", account.accountId)
+                put("id", draftId); put("account_id", account.accountId)
                 put("source_package", candidate.sourcePackage); put("source_key_hash", sourceHash)
                 put("captured_group_id", account.groupId); put("state", "needs_review"); put("user_edited", 0)
                 put("created_at", now)
             }
             db.insertOrThrow("payment_drafts", null, values)
             db.setTransactionSuccessful()
+            return CapturedDraft(draftId, true)
         } finally {
             db.endTransaction()
         }
     }
 
+    fun promptDraft(accountId: String, draftId: String): PromptDraft? {
+        val active = activeCapture() ?: return null
+        if (active.accountId != accountId) return null
+        return readableDatabase.rawQuery("SELECT captured_group_id,amount_paise,entered_title FROM payment_drafts WHERE account_id=? AND id=? AND state='needs_review'", arrayOf(accountId, draftId)).use { cursor ->
+            if (!cursor.moveToFirst() || cursor.getString(0) != active.groupId) null
+            else PromptDraft(draftId, accountId, cursor.getString(0), cursor.getLong(1), cursor.getString(2), active.expiresAtEpochMs)
+        }
+    }
+
+    /** Only the current account's still-private draft can receive a notification reply. */
+    @Synchronized fun replyToDraft(accountId: String, draftId: String, title: String?, personal: Boolean): Boolean {
+        if (!personal && PaymentPromptInput.title(title) == null) return false
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            if (promptDraft(accountId, draftId) == null) return false
+            val changed = db.update("payment_drafts", ContentValues().apply {
+                if (personal) put("state", "personal") else put("entered_title", PaymentPromptInput.title(title))
+                put("user_edited", 1); put("updated_at", System.currentTimeMillis())
+            }, "account_id=? AND id=? AND state='needs_review'", arrayOf(accountId, draftId)) == 1
+            db.setTransactionSuccessful()
+            return changed
+        } finally { db.endTransaction() }
+    }
+
     fun deleteAccountDrafts(accountId: String) {
+        PaymentPrompts.cancelAccount(appContext, accountId)
         if (appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CURRENT_ACCOUNT, null) == accountId) {
             setCurrentAccount(null)
         }

@@ -10,7 +10,7 @@ Proposed, not implemented. Supported Android UPI-app notifications may become pr
 2. Explicitly activate one nonarchived member group for a bounded duration on this device; display expiry/pause/stop.
 3. Native code checks consent/account/expiry and source allowlist before inspecting available content. Ignore unrelated sources and incoming/failed/pending signals. Parse raw text transiently, never log or upload it.
 4. Save minimum candidate fields: amount, payee label, source, observed time, optional reference, and group active at capture. Observed time is not a verified payment timestamp.
-5. Show a generic review prompt when permitted; otherwise retain the private inbox entry. Review, Not shared, Later, and opening a deep link do not post financial records.
+5. Show a private review prompt when permitted; otherwise retain the private inbox entry. Android inline replies save a short user-entered description to the private draft only. Review, Personal, Later, replies and opening a deep link never post financial records; group/amount/split review and explicit confirmation in the app remain required.
 6. Review offers Expense, Settlement, Personal, or Dismiss; verify/edit group, amount, payer, participants, split, category, and date. A transfer to a friend must not automatically become another expense.
 7. Final explicit confirmation freezes a payload under a stable operation UUID. Send online or queue visibly as pending offline. Server authorization, allocation, and financial checks are mandatory.
 8. After a committed result, link the draft to the event. Timeout is unknown, not failed: replay the same key/payload. Personal/dismissed drafts never call posting APIs.

@@ -27,7 +27,10 @@ class PaymentNotificationListener : NotificationListenerService() {
         val body = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString()
         val candidate = CaptureParser.parse(sbn.packageName, active.allowlistedPackages, title, body, sbn.postTime) ?: return
         val sourceKey = sbn.key
-        executor.execute { store.saveCandidate(active, sourceKey, candidate) }
+        executor.execute {
+            val draft = store.saveCandidate(active, sourceKey, candidate)
+            if (draft != null) PaymentPrompts.show(applicationContext, active.accountId, draft.id, onlyExisting = !draft.created)
+        }
     }
 
     override fun onListenerDisconnected() {

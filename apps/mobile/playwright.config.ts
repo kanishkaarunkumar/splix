@@ -2,6 +2,8 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60000,
+  // Hosted database journeys include network round trips before the UI settles.
+  expect: { timeout: 20000 },
   fullyParallel: false,
   use: {
     baseURL: process.env.SPLIX_E2E_PREVIEW_URL || "http://127.0.0.1:8081",

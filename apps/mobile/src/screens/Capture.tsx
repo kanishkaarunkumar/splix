@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { AppState } from "react-native";
+import { AppState, PermissionsAndroid, Platform } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { captureSources, captureStatus, nativeCapture } from "../core/capture";
 import { HomeDock } from "../components/HomeDock";
@@ -75,6 +75,30 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
       setBusy(false);
     }
   }
+  async function enablePrompts() {
+    setError("");
+    try {
+      if (!nativeCapture || Platform.OS !== "android") return;
+      if (Number(Platform.Version) >= 33) {
+        const permission = PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS;
+        if (!(await PermissionsAndroid.check(permission))) {
+          const result = await PermissionsAndroid.request(permission);
+          if (result === PermissionsAndroid.RESULTS.DENIED) {
+            setError(
+              "Notifications remain off. Payment suggestions still appear in your private inbox.",
+            );
+            refresh();
+            return;
+          }
+        }
+      }
+      if (!captureStatus(accountId).promptsEnabled)
+        nativeCapture.openPromptSettings(accountId);
+      refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
   return (
     <Page
       title="Pay, then decide."
@@ -114,6 +138,32 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
         />
       ) : (
         <>
+          <Card>
+            <Heading small>Reply from your notifications.</Heading>
+            <Txt>
+              After a payment is detected in Active mode, type what it was for
+              directly in a Splix notification. Details stay private until you
+              review and confirm the group split.
+            </Txt>
+            <Badge warning={!status.promptsEnabled}>
+              {status.promptsEnabled
+                ? "Payment prompts enabled"
+                : "Payment prompts are off · inbox still works"}
+            </Badge>
+            <Button
+              label={
+                status.promptsEnabled
+                  ? "Notification settings"
+                  : "Allow payment prompts"
+              }
+              secondary
+              onPress={() =>
+                status.promptsEnabled
+                  ? run(() => nativeCapture!.openPromptSettings(accountId))
+                  : void enablePrompts()
+              }
+            />
+          </Card>
           <Badge warning={!status.granted}>
             {!status.granted
               ? "Notification access is off"
@@ -264,6 +314,17 @@ export function InboxScreen({ route, navigation }: ScreenProps<"Inbox">) {
   useFocusEffect(
     useCallback(() => {
       refresh();
+      const listener = AppState.addEventListener("change", (state) => {
+        if (state === "active") refresh();
+      });
+      const focus =
+        Platform.OS === "android"
+          ? AppState.addEventListener("focus", refresh)
+          : undefined;
+      return () => {
+        listener.remove();
+        focus?.remove();
+      };
     }, [refresh]),
   );
   const current = drafts.find(
@@ -306,6 +367,9 @@ export function InboxScreen({ route, navigation }: ScreenProps<"Inbox">) {
           </Badge>
           <Heading>{money(current.amountPaise)}</Heading>
           <Txt>{current.payeeLabel}</Txt>
+          {current.enteredTitle && (
+            <Txt>What it was for: {current.enteredTitle}</Txt>
+          )}
           <Txt muted>{new Date(current.observedAt).toLocaleString()}</Txt>
           <Choice
             label="Review as"
@@ -372,6 +436,7 @@ export function InboxScreen({ route, navigation }: ScreenProps<"Inbox">) {
               <Txt>{draft.payeeLabel}</Txt>
               <Txt mono>{money(draft.amountPaise)}</Txt>
             </Row>
+            {draft.enteredTitle && <Txt>{draft.enteredTitle}</Txt>}
             <Txt muted>
               {groups.find((g) => g.id === draft.groupId)?.name ||
                 "Captured group unavailable"}{" "}

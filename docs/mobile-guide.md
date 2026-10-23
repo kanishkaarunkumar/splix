@@ -51,6 +51,18 @@ To correct an expense, open its history entry, enter the replacement and a reaso
 
 ## Private payment suggestions
 
+### Inline replies (next APK)
+
+The new native source supports Android inline replies during Active Group Mode. Enable **Allow payment prompts** as well as Android notification-listener access. These are separate permissions; Android 13+ needs permission for Splix to show its own notifications. If prompts are off, private Inbox suggestions still work.
+
+A newly detected outgoing payment produces a private notification with **Add details**, **Review in Splix**, and **Personal**. Add details opens the notification keyboard for a description of up to 120 characters. The reply is saved locally and pre-fills the expense title. It never creates an expense, payment or pending financial operation. Review in Splix opens the private suggestion so the user can verify its group, amount, participants and split, then confirm.
+
+Prompts hide payment details on the lock screen, expire with the active session, and cancel on pause, stop, account change, local deletion or draft disposition/confirmation. Replies are tied to one account and draft; stale, queued, cross-account and changed-group actions are rejected. Source updates refresh an existing prompt silently, without recreating a dismissed notification or overwriting typed details. Replies work without JS or network access; posting still needs explicit confirmation and API validation.
+
+Timing and coverage depend on the source app sending a readable notification, Android delivery, channel settings, Do Not Disturb and device power controls. Every UPI transaction is not guaranteed. This feature needs the next custom APK; the delivered APK was deliberately not rebuilt. Real-device notification delivery/reply checks remain outstanding.
+
+### Capture and review
+
 Open Active mode to read the disclosure. Select candidate source apps, explicitly consent, then open Android notification-access settings. After access is granted, choose a current group and a 30-minute, 1-hour, 2-hour or 4-hour duration. Access alone does not activate capture. Pause, stop, expiry, logout, account switching and permission revocation stop active ingestion.
 
 Only selected source packages are inspected. Raw notification text is parsed transiently on-device and is neither stored nor uploaded. Minimal account-scoped suggestions include amount, payee label, time and capture-time group. Payee labels can still be personal data. Local backup is disabled. There is an explicit local deletion control in Profile. Automated retention expiry and payment-app/device coverage remain pilot gates.

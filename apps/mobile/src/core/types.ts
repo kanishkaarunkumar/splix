@@ -61,6 +61,7 @@ export type Report = {
   settlements: FinancialEvent[];
 };
 export type CaptureDraft = {
+  enteredTitle?: string;
   id: string;
   accountId: string;
   groupId: string;
@@ -78,6 +79,7 @@ export type CaptureDraft = {
   committedEventId?: string;
 };
 export type CaptureStatus = {
+  promptsEnabled?: boolean;
   sources?: string[];
   available: boolean;
   granted: boolean;

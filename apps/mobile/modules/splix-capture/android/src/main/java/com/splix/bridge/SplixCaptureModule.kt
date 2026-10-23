@@ -2,8 +2,11 @@ package com.splix.bridge
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import com.splix.capture.CaptureControl
 import com.splix.capture.CaptureStore
+import com.splix.capture.PaymentPrompts
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import org.json.JSONObject
@@ -24,6 +27,7 @@ class SplixCaptureModule : Module() {
         Name("SplixCapture")
         Function("setAccount") { account: String? -> CaptureStore(context).use { it.setCurrentAccount(account) } }
         Function("status") { account: String -> store(account) { db ->
+            PaymentPrompts.prepare(context)
             val granted = CaptureControl.isAccessGranted(context)
             if (!granted) db.pause(account)
             val active = db.activeCapture()
@@ -33,9 +37,14 @@ class SplixCaptureModule : Module() {
                     (0 until json.length()).map { json.getString(it) }
                 } else emptyList<String>()
             }
-            mapOf("available" to true, "granted" to granted, "consent" to sources.isNotEmpty(), "sources" to sources, "groupId" to active?.groupId,
+            mapOf("available" to true, "granted" to granted, "promptsEnabled" to PaymentPrompts.enabled(context), "consent" to sources.isNotEmpty(), "sources" to sources, "groupId" to active?.groupId,
                 "expiresAt" to active?.expiresAtEpochMs, "paused" to (active == null))
         } }
+        Function("openPromptSettings") { account: String ->
+            current(account)
+            context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
         Function("consent") { account: String, sources: List<String> -> store(account) { db ->
             val activity = requireNotNull(appContext.currentActivity) { "Open the app to grant access" }
             CaptureControl.requestAccess(activity, db, account, sources.toSet())
@@ -47,12 +56,12 @@ class SplixCaptureModule : Module() {
         Function("stop") { account: String -> store(account) { it.stop(account) } }
         Function("drafts") { account: String -> store(account) { db ->
             val result = mutableListOf<Map<String, Any?>>()
-            db.readableDatabase.rawQuery("SELECT id,captured_group_id,amount_paise,payee_label,observed_at,duplicate_warning,state,committed_event_id FROM payment_drafts WHERE account_id=? ORDER BY observed_at DESC LIMIT 200", arrayOf(account)).use { cursor ->
+            db.readableDatabase.rawQuery("SELECT id,captured_group_id,amount_paise,payee_label,observed_at,duplicate_warning,state,committed_event_id,entered_title FROM payment_drafts WHERE account_id=? ORDER BY observed_at DESC LIMIT 200", arrayOf(account)).use { cursor ->
                 while (cursor.moveToNext()) result.add(mapOf("id" to cursor.getString(0), "accountId" to account,
                     "groupId" to cursor.getString(1), "amountPaise" to cursor.getLong(2).toString(),
                     "payeeLabel" to (cursor.getString(3) ?: "Payment"), "observedAt" to cursor.getLong(4),
                     "duplicateWarning" to (cursor.getInt(5) != 0), "state" to cursor.getString(6),
-                    "committedEventId" to cursor.getString(7)))
+                    "committedEventId" to cursor.getString(7), "enteredTitle" to cursor.getString(8)))
             }; result
         } }
         Function("disposition") { account: String, id: String, state: String -> store(account) { db ->
@@ -61,6 +70,7 @@ class SplixCaptureModule : Module() {
                 put("state", state); put("user_edited", 1); put("updated_at", System.currentTimeMillis())
             }, "account_id=? AND id=? AND state IN ('needs_review','personal','dismissed','needs_attention')", arrayOf(account, id))
             check(changed == 1) { "Suggestion was already confirmed or is unavailable" }
+            PaymentPrompts.cancel(context, account, id)
         } }
         Function("readState") { account: String -> store(account) { db ->
             db.readableDatabase.rawQuery("SELECT state_json FROM client_state WHERE account_id=?", arrayOf(account)).use { if (it.moveToFirst()) it.getString(0) else null }
@@ -113,6 +123,7 @@ class SplixCaptureModule : Module() {
                 sql.insertWithOnConflict("client_state", null, ContentValues().apply { put("account_id", account); put("state_json", state.toString()) }, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
                 sql.setTransactionSuccessful()
             } finally { sql.endTransaction() }
+            if (row.optString("draftId").isNotEmpty()) PaymentPrompts.cancel(context, account, row.getString("draftId"))
         } }
         Function("deleteLocal") { account: String -> store(account) { db ->
             db.writableDatabase.delete("client_state", "account_id=?", arrayOf(account))
