@@ -51,7 +51,7 @@ export function MembersScreen({ route }: ScreenProps<"Members">) {
     }
   }
   return (
-    <Page title="Your people." subtitle={group?.name}>
+    <Page title="People & invites" subtitle={group?.name}>
       <Card>
         {group?.members.map((member) => (
           <Row key={member.id}>
@@ -68,10 +68,9 @@ export function MembersScreen({ route }: ScreenProps<"Members">) {
       {owner && !group?.archived && (
         <>
           <Card>
-            <Heading small>Share a way in.</Heading>
+            <Heading small>Invite someone</Heading>
             <Txt muted>
-              Codes expire after 24 hours. You approve each person before they
-              join.
+              Share a code. It lasts 24 hours, and you approve each request.
             </Txt>
             <Button
               label="Create join code"
@@ -136,7 +135,8 @@ export function MembersScreen({ route }: ScreenProps<"Members">) {
               <Txt muted>{request.user.email}</Txt>
               <Row>
                 <Button
-                  label={`Approve ${request.user.displayName}`}
+                  label="Approve"
+                  accessibilityLabel={`Approve ${request.user.displayName}`}
                   compact
                   busy={busy}
                   onPress={() =>
@@ -151,7 +151,8 @@ export function MembersScreen({ route }: ScreenProps<"Members">) {
                   }
                 />
                 <Button
-                  label={`Decline ${request.user.displayName}`}
+                  label="Decline"
+                  accessibilityLabel={`Decline ${request.user.displayName}`}
                   compact
                   secondary
                   busy={busy}

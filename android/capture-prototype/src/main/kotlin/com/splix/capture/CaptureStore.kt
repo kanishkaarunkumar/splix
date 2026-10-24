@@ -196,6 +196,8 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
         if (appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CURRENT_ACCOUNT, null) == accountId) {
             setCurrentAccount(null)
         }
+        appContext.getSharedPreferences("capture_diagnostics", Context.MODE_PRIVATE).edit()
+            .remove("$accountId:last_sms_at").remove("$accountId:last_sms_result").apply()
         writableDatabase.delete("client_state", "account_id=?", arrayOf(accountId))
         writableDatabase.delete("payment_drafts", "account_id=?", arrayOf(accountId))
         writableDatabase.delete("capture_settings", "account_id=?", arrayOf(accountId))
@@ -204,6 +206,20 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
     fun draftCount(accountId: String): Int = readableDatabase.rawQuery(
         "SELECT count(*) FROM payment_drafts WHERE account_id=?", arrayOf(accountId),
     ).use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
+
+    /** Local troubleshooting metadata only; never store sender, body, amounts or references. */
+    fun recordSmsCheck(accountId: String, result: String) {
+        require(result in setOf("outside_session", "sender_format", "not_recognized", "recognized", "not_stored"))
+        if (appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CURRENT_ACCOUNT, null) != accountId) return
+        appContext.getSharedPreferences("capture_diagnostics", Context.MODE_PRIVATE).edit()
+            .putLong("$accountId:last_sms_at", System.currentTimeMillis())
+            .putString("$accountId:last_sms_result", result).apply()
+    }
+
+    fun smsDiagnostics(accountId: String): Pair<Long, String?> {
+        val prefs = appContext.getSharedPreferences("capture_diagnostics", Context.MODE_PRIVATE)
+        return prefs.getLong("$accountId:last_sms_at", 0) to prefs.getString("$accountId:last_sms_result", null)
+    }
 
     fun hasDuplicateWarning(accountId: String): Boolean = readableDatabase.query(
         "payment_drafts", arrayOf("id"), "account_id=? AND duplicate_warning=1", arrayOf(accountId), null, null, null,

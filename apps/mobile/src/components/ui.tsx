@@ -275,6 +275,57 @@ export function Divider() {
     />
   );
 }
+export function Details({
+  title,
+  children,
+  initiallyOpen = false,
+}: {
+  title: string;
+  children: ReactNode;
+  initiallyOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(initiallyOpen);
+  return (
+    <View style={{ gap: 12, minWidth: 0 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ expanded: open }}
+        aria-expanded={open}
+        onPress={() => setOpen(!open)}
+        style={({ pressed, focused }: any) => ({
+          minHeight: 48,
+          borderRadius: 14,
+          padding: 14,
+          backgroundColor: c.soft,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          opacity: pressed ? 0.7 : 1,
+          ...(focused
+            ? { outlineStyle: "solid", outlineWidth: 2, outlineColor: c.teal }
+            : {}),
+        })}
+      >
+        <Text
+          style={{
+            flex: 1,
+            flexShrink: 1,
+            color: c.ink,
+            fontFamily: fonts.medium,
+            fontSize: 14,
+          }}
+        >
+          {title}
+        </Text>
+        <Text accessible={false} style={{ color: c.ink, fontSize: 20 }}>
+          {open ? "−" : "+"}
+        </Text>
+      </Pressable>
+      {open && <View style={{ gap: 12 }}>{children}</View>}
+    </View>
+  );
+}
 export function Badge({
   children,
   warning = false,

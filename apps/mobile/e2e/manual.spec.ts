@@ -56,19 +56,21 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
   ).toBeVisible();
   await page.getByRole("tab", { name: "Inbox", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Just between us." }),
+    page.getByRole("heading", { name: "Payment inbox" }),
   ).toBeVisible();
   await page.getByRole("tab", { name: "You", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Your corner." }),
+    page.getByRole("heading", { name: "Your account" }),
   ).toBeVisible();
   await page.getByRole("tab", { name: "Groups", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Hello, Alex." }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Active mode", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Payment reminders", exact: true })
+    .click();
   await expect(
-    page.getByRole("heading", { name: "Pay, then decide." }),
+    page.getByRole("heading", { name: "Payment reminders" }),
   ).toBeVisible();
   await page.getByRole("link", { name: /, back$/ }).click();
   await page.getByRole("button", { name: "Create your first group" }).click();
@@ -122,17 +124,13 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
     .getByRole("button", { name: "Confirm shared expense", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: /1 pending · balances exclude/ }),
+    page.getByRole("button", { name: /1 waiting to sync/ }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: /1 pending · balances exclude/ })
-    .click();
+  await page.getByRole("button", { name: /1 waiting to sync/ }).click();
   await expect(page.getByText("Pending", { exact: true })).toBeVisible();
   await page.unroute(`${API_URL}/api/v1/**`);
-  await page
-    .getByRole("button", { name: "Retry pending writes", exact: true })
-    .click();
-  await expect(page.getByText("Committed", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Sync now", exact: true }).click();
+  await expect(page.getByText("Synced", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: /, back$/ }).click();
   await expect(
     page.getByText("Seaside dinner", { exact: true }).filter({ visible: true }),

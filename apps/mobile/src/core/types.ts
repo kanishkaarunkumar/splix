@@ -82,6 +82,8 @@ export type CaptureStatus = {
   remindersEnabled?: boolean;
   smsPackage?: string;
   smsAppName?: string;
+  smsLastObservedAt?: number;
+  smsLastResult?: string;
   listenerConnected?: boolean;
   promptsEnabled?: boolean;
   sources?: string[];

@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   Choice,
+  Details,
   ErrorBox,
   Eyebrow,
   Field,
@@ -45,7 +46,7 @@ export function Auth() {
         setNotice(
           reset
             ? "Password reset. Sign in with your new password."
-            : "If recovery delivery is configured for this account, a reset link will be sent. Contact your administrator if it does not arrive.",
+            : "Email resets are not enabled yet. Ask the app administrator for a reset code.",
         );
       } else {
         const session = await api.request<Session>(`/api/v1/auth/${mode}`, {
@@ -83,7 +84,7 @@ export function Auth() {
           tone="teal"
           style={{
             flex: wide ? 1 : undefined,
-            minHeight: wide ? 550 : 260,
+            minHeight: wide ? 550 : 190,
             overflow: "hidden",
             justifyContent: "space-between",
             padding: wide ? 34 : 24,
@@ -197,7 +198,7 @@ export function Auth() {
             onPress={() => void submit()}
           />
           {mode === "recovery" && (
-            <>
+            <Details title="I have a reset code">
               <Field
                 label="Recovery token"
                 value={token}
@@ -217,14 +218,13 @@ export function Auth() {
                 disabled={!token || password.length < 8 || !api}
                 onPress={() => void submit(true)}
               />
-            </>
+            </Details>
           )}
         </Card>
       </View>
       <Txt muted style={{ fontSize: 12, maxWidth: 680 }}>
-        Splix records payments made outside the app. It doesn’t move money.
-        Notification access is optional; every shared expense needs your
-        confirmation.
+        You confirm every shared expense. Splix records payments; it never
+        transfers money.
       </Txt>
     </Page>
   );

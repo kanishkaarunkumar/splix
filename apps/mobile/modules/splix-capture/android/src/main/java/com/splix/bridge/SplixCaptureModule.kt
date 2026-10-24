@@ -34,6 +34,7 @@ class SplixCaptureModule : Module() {
             if (!granted) db.pause(account)
             val active = db.activeCapture()
             val sms = SmsNotificationSource.packageName(context)
+            val diagnostics = db.smsDiagnostics(account)
             val sources = db.readableDatabase.rawQuery("SELECT allowlist_json FROM capture_settings WHERE account_id=? AND consent_at>0", arrayOf(account)).use { cursor ->
                 if (cursor.moveToFirst()) {
                     val json = JSONArray(cursor.getString(0))
@@ -42,6 +43,7 @@ class SplixCaptureModule : Module() {
             }
             mapOf("available" to true, "granted" to granted, "listenerConnected" to PaymentNotificationListener.connected, "promptsEnabled" to PaymentPrompts.enabled(context), "consent" to sources.isNotEmpty(), "sources" to sources,
                 "smsPackage" to sms, "smsAppName" to sms?.let { SmsNotificationSource.label(context, it) },
+                "smsLastObservedAt" to diagnostics.first.takeIf { it > 0 }, "smsLastResult" to diagnostics.second,
                 "remindersEnabled" to (active?.alwaysOn == true), "groupId" to active?.groupId?.takeIf { it != CaptureStore.UNASSIGNED_GROUP },
                 "expiresAt" to active?.expiresAtEpochMs?.takeIf { active.alwaysOn == false }, "paused" to (active == null))
         } }

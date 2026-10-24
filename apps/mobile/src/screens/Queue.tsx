@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Card,
+  Details,
   Empty,
   ErrorBox,
   Heading,
@@ -29,25 +30,19 @@ export function QueueScreen() {
   }
   return (
     <Page
-      title="Saved. Then synced."
-      subtitle="Only the writes you confirmed are here."
+      title="Sync status"
+      subtitle="Your confirmed expenses and payments."
       footer={
-        <Button
-          label="Retry pending writes"
-          busy={busy}
-          onPress={() => void sync()}
-        />
+        <Button label="Sync now" busy={busy} onPress={() => void sync()} />
       }
     >
       <Txt muted>
-        Pending writes are saved on this device and excluded from confirmed
-        balances. Retries use the same request key, even after restart or a lost
-        response.
+        Pending items are saved on this phone. Balances update after they sync.
       </Txt>
       {!local.queue.length && (
         <Empty
           title="All clear."
-          detail="Confirm an expense or a payment to add a write to this queue."
+          detail="Expenses and payments appear here after you confirm them."
         />
       )}
       {[...local.queue].reverse().map((item) => (
@@ -55,7 +50,7 @@ export function QueueScreen() {
           <Row>
             <Badge warning={item.state === "needs_attention"}>
               {item.state === "posted"
-                ? "Committed"
+                ? "Synced"
                 : item.state === "needs_attention"
                   ? "Needs attention"
                   : item.state === "sending"
@@ -81,20 +76,21 @@ export function QueueScreen() {
             {groups.find((g) => g.id === item.groupId)?.name || "Group"} ·{" "}
             {new Date(item.createdAt).toLocaleString()}
           </Txt>
-          <Txt mono muted>
-            Request {item.id.slice(0, 8)} ·{" "}
-            {item.eventId
-              ? `Event ${item.eventId.slice(0, 8)}`
-              : "Awaiting server confirmation"}
-          </Txt>
+          <Details title="Sync details">
+            <Txt mono muted>
+              Request {item.id.slice(0, 8)} ·{" "}
+              {item.eventId
+                ? `Event ${item.eventId.slice(0, 8)}`
+                : "Awaiting server confirmation"}
+            </Txt>
+            <Txt muted>
+              Retries keep the same request key to avoid duplicate records.
+            </Txt>
+          </Details>
           {item.error && <ErrorBox message={item.error} />}
           {item.state === "needs_attention" && (
             <>
-              <Txt muted>
-                Check the group’s current membership, balance, and history
-                before retrying. This request keeps its original payload and
-                key.
-              </Txt>
+              <Txt muted>Check the group and balance before retrying.</Txt>
               <Button
                 label="Retry this exact request"
                 secondary
@@ -118,8 +114,7 @@ export function QueueScreen() {
                 }}
               />
               <Txt muted>
-                Discard only removes this rejected request. A linked suggestion
-                returns to the private inbox for a fresh review.
+                Discarding returns a linked suggestion to your inbox for review.
               </Txt>
             </>
           )}

@@ -11,6 +11,7 @@ import {
   Card,
   Check,
   Choice,
+  Details,
   ErrorBox,
   Field,
   Heading,
@@ -260,9 +261,9 @@ export function ExpenseScreen({ route, navigation }: ScreenProps<"Expense">) {
     <Page
       title={
         correction
-          ? "Make it right."
+          ? "Correct expense"
           : reviewing
-            ? "A fair share."
+            ? "Review expense"
             : "Add an expense."
       }
       subtitle={`${group.name} · ${correction ? "The original stays in history." : "Every little thing, accounted for."}`}
@@ -323,8 +324,7 @@ export function ExpenseScreen({ route, navigation }: ScreenProps<"Expense">) {
             {correction && <Txt muted>Correction reason: {reason}</Txt>}
           </Card>
           <Txt muted>
-            Confirming saves one request on this device. It will post when the
-            connection is available. The server checks the final split.
+            Confirm to save this split. If you’re offline, it will sync later.
           </Txt>
           <Button
             label="Edit expense"
@@ -336,7 +336,7 @@ export function ExpenseScreen({ route, navigation }: ScreenProps<"Expense">) {
         <>
           {!!presets.length && (
             <Card>
-              <Heading small>A familiar split?</Heading>
+              <Heading small>Saved splits</Heading>
               {presets.map((p) => (
                 <Button
                   key={p.id}
@@ -370,21 +370,23 @@ export function ExpenseScreen({ route, navigation }: ScreenProps<"Expense">) {
               label: x.displayName,
             }))}
           />
-          <Choice
-            label="Category"
-            value={category}
-            onChange={setCategory}
-            options={["Food", "Travel", "Home", "Stay", "Other"].map((x) => ({
-              value: x,
-              label: x,
-            }))}
-          />
-          <Field
-            label="Date"
-            value={date}
-            onChange={setDate}
-            hint="YYYY-MM-DD"
-          />
+          <Details title="Date & category" initiallyOpen={!!correction}>
+            <Choice
+              label="Category"
+              value={category}
+              onChange={setCategory}
+              options={["Food", "Travel", "Home", "Stay", "Other"].map((x) => ({
+                value: x,
+                label: x,
+              }))}
+            />
+            <Field
+              label="Date"
+              value={date}
+              onChange={setDate}
+              hint="YYYY-MM-DD"
+            />
+          </Details>
           <Choice
             label="How are we splitting?"
             value={method}
@@ -437,12 +439,14 @@ export function ExpenseScreen({ route, navigation }: ScreenProps<"Expense">) {
               </Row>
             ))}
           </Card>
-          <Field
-            label="Note (optional)"
-            value={note}
-            onChange={setNote}
-            multiline
-          />
+          <Details title="Add a note" initiallyOpen={!!note}>
+            <Field
+              label="Note (optional)"
+              value={note}
+              onChange={setNote}
+              multiline
+            />
+          </Details>
           {correction && (
             <Field
               label="Correction reason"
@@ -459,7 +463,7 @@ export function ExpenseScreen({ route, navigation }: ScreenProps<"Expense">) {
             />
           )}
           {group.ownerId === session?.id && (
-            <Card>
+            <Details title="Save this split for later">
               <Field
                 label="Save this split as a preset"
                 value={presetName}
@@ -472,7 +476,7 @@ export function ExpenseScreen({ route, navigation }: ScreenProps<"Expense">) {
                 disabled={!presetName.trim()}
                 onPress={() => void savePreset()}
               />
-            </Card>
+            </Details>
           )}
         </>
       )}

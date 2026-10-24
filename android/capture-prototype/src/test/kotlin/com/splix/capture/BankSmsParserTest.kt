@@ -8,6 +8,15 @@ class BankSmsParserTest {
     private val selected = setOf(source)
     private fun parse(text: String, sender: String = "AD-HDFCBK") = BankSmsParser.parse(source, selected, sender, text, 100L)
 
+    @Test fun debitAlertMayAlsoDescribeRecipientCredit() {
+        val result = parse("Your a/c no. XXXXXXX is debited for Rs.1.00 on 24-10-2026 and credited to a/c no. XXXXXX (UPI Ref no 436200001234)")!!
+        assertEquals(100L, result.amountPaise)
+        assertEquals(CaptureParser.sha256("436200001234"), result.referenceFingerprint)
+        assertNull(parse("Your a/c no. XXXXXXX is credited for Rs.1.00 on 24-10-2026 and debited from a/c no. XXXXXX (UPI Ref no 436200001234)"))
+        assertNull(parse("Received Rs.1.00 in your account from sender a/c debited via UPI Ref 436200001234"))
+        assertEquals(100L, parse("Sent Rs.1.00 from A/CXX1234 via UPI to beneficiary account credited (UPI Ref 436200001234)")!!.amountPaise)
+    }
+
     @Test fun detectsDebitAndIgnoresAvailableBalanceWithoutRetainingSms() {
         val result = parse("A/c XX1234 debited by Rs.450.00 via UPI. Ref No 123456789012. Avl Bal Rs.9,550.00")!!
         assertEquals(45000L, result.amountPaise)

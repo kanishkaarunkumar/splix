@@ -6,9 +6,9 @@ import {
   Button,
   Card,
   Check,
+  Details,
   ErrorBox,
   Field,
-  Heading,
   Page,
   Txt,
 } from "../components/ui";
@@ -34,7 +34,7 @@ export function ProfileScreen() {
   const pending = local.queue.filter((x) => x.state !== "posted").length;
   return (
     <Page
-      title="Your corner."
+      title="Your account"
       subtitle={session?.email}
       footer={<HomeDock active="you" />}
     >
@@ -62,39 +62,38 @@ export function ProfileScreen() {
         />
       </Card>
       <Card>
-        <Heading small>Your data stays yours.</Heading>
-        <Txt muted>
-          Payment suggestions and saved drafts stay on this device. Sessions are
-          stored in Android secure storage. Group expenses and recorded payments
-          remain part of the shared financial history.
-        </Txt>
-        <Txt muted>
-          Capture access is optional. Revoking access or signing out stops
-          capture. You can remove this device’s private data below.
-        </Txt>
-        <Txt muted>
-          {pending} uncommitted writes on this device. Deleting local data
-          permanently removes these requests and drafts; check group history
-          first if a response was lost.
-        </Txt>
-        <Check
-          label="Delete this account’s private data on this device"
-          checked={localDeletion}
-          onChange={() => setLocalDeletion(!localDeletion)}
-        />
-        <Button
-          label="Delete local drafts & queue"
-          danger
-          secondary
-          disabled={!localDeletion}
-          busy={busy}
-          onPress={() =>
-            void work(async () => {
-              await repository.delete(session!.id);
-              await signOut();
-            })
-          }
-        />
+        <Details title="Device data & privacy">
+          <Txt muted>
+            Private drafts stay on this phone. Confirmed group expenses are
+            shared with your group.
+          </Txt>
+          <Txt muted>
+            Signing out stops reminders and keeps your drafts for next time.
+          </Txt>
+          <Txt muted>
+            {pending} items waiting to sync. Deleting device data permanently
+            removes them and your drafts. Check group history first if a sync
+            result is uncertain.
+          </Txt>
+          <Check
+            label="Delete this account’s private data on this device"
+            checked={localDeletion}
+            onChange={() => setLocalDeletion(!localDeletion)}
+          />
+          <Button
+            label="Delete local drafts & queue"
+            danger
+            secondary
+            disabled={!localDeletion}
+            busy={busy}
+            onPress={() =>
+              void work(async () => {
+                await repository.delete(session!.id);
+                await signOut();
+              })
+            }
+          />
+        </Details>
       </Card>
       <Button
         label="Sign out"
@@ -102,36 +101,33 @@ export function ProfileScreen() {
         busy={busy}
         onPress={() => void work(signOut)}
       />
-      <Txt muted>
-        Signing out keeps this account’s local queue isolated so you can resume
-        it after signing in again.
-      </Txt>
       <Card>
-        <Heading small>Delete your account</Heading>
-        <Txt muted>
-          Your profile is anonymised and sessions are revoked. Existing group
-          financial history is retained for everyone’s audit trail. This also
-          removes your private drafts and queue from this device.
-        </Txt>
-        <Check
-          label="I understand the retained financial history and want to delete my account"
-          checked={deletion}
-          onChange={() => setDeletion(!deletion)}
-        />
-        <Button
-          label="Delete account"
-          danger
-          secondary
-          disabled={!deletion}
-          busy={busy}
-          onPress={() =>
-            void work(async () => {
-              await api!.request("/api/v1/me", { method: "DELETE" });
-              await repository.delete(session!.id);
-              await signOut();
-            })
-          }
-        />
+        <Details title="Account deletion">
+          <Txt muted>
+            Your profile is anonymised and sessions are revoked. Existing group
+            financial history is retained for everyone’s audit trail. This also
+            removes your private drafts and queue from this device.
+          </Txt>
+          <Check
+            label="I understand the retained financial history and want to delete my account"
+            checked={deletion}
+            onChange={() => setDeletion(!deletion)}
+          />
+          <Button
+            label="Delete account"
+            danger
+            secondary
+            disabled={!deletion}
+            busy={busy}
+            onPress={() =>
+              void work(async () => {
+                await api!.request("/api/v1/me", { method: "DELETE" });
+                await repository.delete(session!.id);
+                await signOut();
+              })
+            }
+          />
+        </Details>
       </Card>
       {notice && <Txt>{notice}</Txt>}
       {error && <ErrorBox message={error} />}

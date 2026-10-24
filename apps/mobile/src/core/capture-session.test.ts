@@ -1,5 +1,9 @@
 import { expect, test, vi } from "vitest";
-import { startCaptureSession, startPaymentReminders } from "./capture-session";
+import {
+  captureChoicesSaved,
+  startCaptureSession,
+  startPaymentReminders,
+} from "./capture-session";
 import type { CaptureStatus } from "./types";
 
 const active = (): CaptureStatus => ({
@@ -9,6 +13,15 @@ const active = (): CaptureStatus => ({
   paused: false,
   groupId: "trip",
   expiresAt: Date.now() + 60000,
+});
+
+test("new SMS source selection must be saved before reminders can start", () => {
+  expect(captureChoicesSaved(["upi", "messages"], ["upi"], true)).toBe(false);
+  expect(
+    captureChoicesSaved(["messages", "upi"], ["upi", "messages"], true),
+  ).toBe(true);
+  expect(captureChoicesSaved(["messages"], ["messages"], false)).toBe(false);
+  expect(captureChoicesSaved([], [], true)).toBe(false);
 });
 
 test("reminders need no group or expiry and verify that prompts and access are enabled", async () => {

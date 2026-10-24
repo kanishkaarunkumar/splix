@@ -109,7 +109,7 @@ export function Home({ route, navigation }: ScreenProps<"Home">) {
             : `${summary.loadedGroups} of ${summary.totalGroups} groups loaded`}
         </Eyebrow>
         <Button
-          label="Active mode"
+          label="Payment reminders"
           secondary
           onPress={() => navigation.navigate("Capture")}
         />
@@ -135,7 +135,7 @@ export function Home({ route, navigation }: ScreenProps<"Home">) {
       )}
       {!!pending && (
         <Button
-          label={`${pending} pending ${pending === 1 ? "write" : "writes"} · review queue`}
+          label={`${pending} waiting to sync`}
           secondary
           onPress={() => navigation.navigate("Queue")}
         />
@@ -231,7 +231,7 @@ export function Home({ route, navigation }: ScreenProps<"Home">) {
                 onChange={setCode}
                 autoCapitalize="characters"
                 placeholder="AB7K"
-                hint="New codes have 4 characters. Previously shared codes still work until they expire."
+                hint="4 characters, e.g. AB7K"
               />
               <Button
                 label="Request to join"

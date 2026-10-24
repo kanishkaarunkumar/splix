@@ -69,12 +69,9 @@ export function CloseoutScreen({ route, navigation }: ScreenProps<"Closeout">) {
     }
   }
   return (
-    <Page
-      title="Leave it all square."
-      subtitle={`${group?.name || "Group"} · A little check before you go.`}
-    >
+    <Page title="Close group" subtitle={group?.name || "Group"}>
       <Card>
-        <Heading small>This device’s checklist</Heading>
+        <Heading small>Before you close</Heading>
         <Row>
           <Txt>Private suggestions to review</Txt>
           <Badge warning={!!drafts}>{drafts}</Badge>
@@ -84,13 +81,12 @@ export function CloseoutScreen({ route, navigation }: ScreenProps<"Closeout">) {
           <Badge warning={!!forms}>{forms}</Badge>
         </Row>
         <Row>
-          <Txt>Uncommitted writes</Txt>
+          <Txt>Waiting to sync</Txt>
           <Badge warning={!!pending}>{pending}</Badge>
         </Row>
         <Txt muted>
-          You can only see private drafts on this device for your own account.
-          Check with the rest of your group about anything they still need to
-          add.
+          These counts are for this phone. Check that everyone has added their
+          expenses.
         </Txt>
       </Card>
       <Card>
@@ -137,8 +133,8 @@ export function CloseoutScreen({ route, navigation }: ScreenProps<"Closeout">) {
             onPress={() => void archive()}
           />
           <Txt muted>
-            Archiving preserves history and stops new financial writes. The
-            server checks that all balances are zero.
+            History stays available. New expenses stop, and all balances must be
+            settled.
           </Txt>
         </>
       )}

@@ -7,6 +7,7 @@ import type { ScreenProps } from "../navigation";
 import {
   Button,
   Card,
+  Details,
   Empty,
   ErrorBox,
   Field,
@@ -81,7 +82,7 @@ export function ReportScreen({ route }: ScreenProps<"Report">) {
     group?.members.find((m) => m.id === id)?.displayName || "Member";
   return (
     <Page
-      title="The month, made clear."
+      title="Monthly report"
       subtitle={`${group?.name || "Group"} · Confirmed activity only.`}
     >
       <Field
@@ -127,15 +128,16 @@ export function ReportScreen({ route }: ScreenProps<"Report">) {
             ))}
           </Card>
           <Card>
-            <Heading small>Opening → closing</Heading>
-            {Object.entries(report.closingBalances).map(([id, value]) => (
-              <Row key={id}>
-                <Txt style={{ flex: 1 }}>{name(id)}</Txt>
-                <Txt mono>
-                  {money(report.openingBalances[id] || "0")} → {money(value)}
-                </Txt>
-              </Row>
-            ))}
+            <Details title="Opening and closing balances">
+              {Object.entries(report.closingBalances).map(([id, value]) => (
+                <Row key={id}>
+                  <Txt style={{ flex: 1 }}>{name(id)}</Txt>
+                  <Txt mono>
+                    {money(report.openingBalances[id] || "0")} → {money(value)}
+                  </Txt>
+                </Row>
+              ))}
+            </Details>
           </Card>
           <Card>
             <Heading small>Payments recorded</Heading>
@@ -157,11 +159,13 @@ export function ReportScreen({ route }: ScreenProps<"Report">) {
             busy={busy}
             onPress={() => void exportCsv()}
           />
-          <Txt muted>
-            The CSV comes from the same monthly API report. Local suggestions
-            and pending writes are excluded. Late corrections can restate
-            earlier months.
-          </Txt>
+          <Details title="About this report">
+            <Txt muted>
+              The CSV comes from the same monthly API report. Local suggestions
+              and pending writes are excluded. Late corrections can restate
+              earlier months.
+            </Txt>
+          </Details>
         </>
       )}
       {!report && !busy && !error && (

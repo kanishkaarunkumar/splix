@@ -48,26 +48,23 @@ function Product() {
         <Stack.Protected guard={!!session}>
           <Stack.Screen name="Home" options={{ title: "splix." }} />
           <Stack.Screen name="Group" options={{ title: "GROUP" }} />
-          <Stack.Screen name="Expense" options={{ title: "SHARED EXPENSE" }} />
+          <Stack.Screen name="Expense" options={{ title: "EXPENSE" }} />
           <Stack.Screen
             name="Settlement"
-            options={{ title: "RECORD A PAYMENT" }}
+            options={{ title: "RECORD PAYMENT" }}
           />
           <Stack.Screen
             name="Capture"
-            options={{ title: "ACTIVE GROUP MODE" }}
+            options={{ title: "PAYMENT REMINDERS" }}
           />
-          <Stack.Screen name="Inbox" options={{ title: "PRIVATE INBOX" }} />
-          <Stack.Screen
-            name="Queue"
-            options={{ title: "THIS DEVICE’S QUEUE" }}
-          />
+          <Stack.Screen name="Inbox" options={{ title: "PAYMENT INBOX" }} />
+          <Stack.Screen name="Queue" options={{ title: "SYNC STATUS" }} />
           <Stack.Screen
             name="Members"
             options={{ title: "PEOPLE & INVITES" }}
           />
           <Stack.Screen name="Report" options={{ title: "MONTHLY REPORT" }} />
-          <Stack.Screen name="Closeout" options={{ title: "CLOSE OUT" }} />
+          <Stack.Screen name="Closeout" options={{ title: "CLOSE GROUP" }} />
           <Stack.Screen name="Profile" options={{ title: "YOUR ACCOUNT" }} />
           <Stack.Screen
             name="review/[draftId]"

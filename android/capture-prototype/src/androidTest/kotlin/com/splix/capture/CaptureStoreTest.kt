@@ -11,6 +11,29 @@ import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class CaptureStoreTest {
+    @Test fun smsDiagnosticsAreAccountScopedAndDeletedWithLocalData() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val account = UUID.randomUUID().toString()
+        val other = UUID.randomUUID().toString()
+        CaptureStore(context).use { store ->
+            try {
+                store.setCurrentAccount(account)
+                store.recordSmsCheck(account, "not_recognized")
+                assertTrue(store.smsDiagnostics(account).first > 0)
+                assertEquals("not_recognized", store.smsDiagnostics(account).second)
+                assertNull(store.smsDiagnostics(other).second)
+                store.recordSmsCheck(other, "recognized")
+                assertNull(store.smsDiagnostics(other).second)
+                try {
+                    store.recordSmsCheck(account, "Raw SMS text must not be persisted")
+                    fail("Only fixed diagnostic codes may be stored")
+                } catch (_: IllegalArgumentException) { }
+                store.deleteAccountDrafts(account)
+                assertEquals(0L, store.smsDiagnostics(account).first)
+                assertNull(store.smsDiagnostics(account).second)
+            } finally { store.deleteAccountDrafts(account); store.deleteAccountDrafts(other) }
+        }
+    }
     @Test fun remindersKeepUnassignedDraftsAndMergeSamePaymentAcrossSources() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val account = UUID.randomUUID().toString()

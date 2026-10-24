@@ -41,8 +41,20 @@ class PaymentNotificationListener : NotificationListenerService() {
             val sender = newest?.sender?.toString() ?: title
             val text = newest?.text?.toString() ?: body
             val observed = newest?.timestamp ?: sbn.postTime
-            if (observed < active.startedAtEpochMs || observed > System.currentTimeMillis() + 60_000) return
-            candidate = BankSmsParser.parse(sbn.packageName, active.allowlistedPackages, sender, text, observed) ?: return
+            if (observed < active.startedAtEpochMs || observed > System.currentTimeMillis() + 60_000) {
+                store.recordSmsCheck(active.accountId, "outside_session")
+                return
+            }
+            if (!BankSmsParser.supportsSender(sender)) {
+                store.recordSmsCheck(active.accountId, "sender_format")
+                return
+            }
+            val parsed = BankSmsParser.parse(sbn.packageName, active.allowlistedPackages, sender, text, observed)
+            if (parsed == null) {
+                store.recordSmsCheck(active.accountId, "not_recognized")
+                return
+            }
+            candidate = parsed
             // A Messages conversation reuses its notification key for different payments.
             sourceKey = "sms:" + CaptureParser.sha256(sbn.key) + ":" + CaptureParser.sha256("$sender\u0000$text\u0000$observed")
         } else {
@@ -52,6 +64,7 @@ class PaymentNotificationListener : NotificationListenerService() {
         }
         executor.execute {
             val draft = store.saveCandidate(active, sourceKey, candidate)
+            if (sms) store.recordSmsCheck(active.accountId, if (draft != null) "recognized" else "not_stored")
             if (draft != null) PaymentPrompts.show(applicationContext, active.accountId, draft.id, onlyExisting = !draft.created)
         }
     }

@@ -95,8 +95,8 @@ export function SettlementScreen({
     );
   return (
     <Page
-      title="One less thing owed."
-      subtitle={`${group.name} · Record a payment already made outside Splix.`}
+      title="Record payment"
+      subtitle={`${group.name} · For money already paid.`}
       footer={
         <Button
           label={review ? "Confirm recorded payment" : "Review payment"}
@@ -119,11 +119,8 @@ export function SettlementScreen({
     >
       {!review && !!suggestions.length && (
         <Card>
-          <Heading small>A way to settle up</Heading>
-          <Txt muted>
-            Suggestions preserve the group’s balances. Choosing one fills the
-            form.
-          </Txt>
+          <Heading small>Suggested payments</Heading>
+          <Txt muted>Tap a suggestion to fill the form.</Txt>
           {suggestions.map((suggestion, i) => (
             <Button
               key={i}
@@ -155,8 +152,8 @@ export function SettlementScreen({
             onChange={() => setPaid(!paid)}
           />
           <Txt muted>
-            The server rechecks the current debt before recording. A stale or
-            excessive payment will need your attention in the queue.
+            Only record money already paid. We’ll check the current balance when
+            it syncs.
           </Txt>
           <Button
             label="Edit payment"

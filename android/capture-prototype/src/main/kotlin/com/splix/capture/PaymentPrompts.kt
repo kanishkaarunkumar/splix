@@ -76,11 +76,11 @@ object PaymentPrompts {
         val review = PendingIntent.getActivity(context, 0, launch, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val amount = String.format(Locale.ROOT, "₹%d.%02d", draft.amountPaise / 100, draft.amountPaise % 100)
         val text = when {
-            invalidReply -> "Use 1–120 characters. Your payment is still a private draft."
-            hasDetails -> "Details saved privately. Review and confirm the group split in Splix."
-            else -> "What was this payment for? Name it, split it or mark it personal."
+            invalidReply -> "Use 1–120 characters for the name."
+            hasDetails -> "Name saved. Choose a group and confirm the split."
+            else -> "Record this expense?"
         }
-        val reply = Notification.Action.Builder(android.R.drawable.ic_menu_edit, "Add details",
+        val reply = Notification.Action.Builder(android.R.drawable.ic_menu_edit, "Name expense",
             action(context, account, draftId, REPLY, true))
             .addRemoteInput(RemoteInput.Builder(INPUT_TITLE).setLabel("What was it for?").build())
             .setAllowGeneratedReplies(false)
@@ -95,7 +95,7 @@ object PaymentPrompts {
             .setCategory(Notification.CATEGORY_REMINDER)
             .setTimeoutAfter((draft.expiresAt - System.currentTimeMillis()).coerceIn(1, 24 * 60 * 60 * 1000L))
             .addAction(reply.build())
-            .addAction(Notification.Action.Builder(android.R.drawable.ic_menu_view, "Split / choose group", review).build())
+            .addAction(Notification.Action.Builder(android.R.drawable.ic_menu_view, "Split", review).build())
             .addAction(Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel, "Personal",
                 action(context, account, draftId, PERSONAL, false)).build())
         if (hasDetails && draft.title != null) builder.setRemoteInputHistory(arrayOf(draft.title))

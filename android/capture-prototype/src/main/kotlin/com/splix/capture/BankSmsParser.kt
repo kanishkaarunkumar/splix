@@ -4,7 +4,8 @@ package com.splix.capture
 object BankSmsParser {
     private val senderId = Regex("(?:[A-Z]{2}-)?[A-Z0-9]{6}(?:-[A-Z])?", RegexOption.IGNORE_CASE)
     private val outgoing = Regex("\\b(debited|paid|sent|transferred)\\b", RegexOption.IGNORE_CASE)
-    private val reject = Regex("\\b(otp|one[ -]?time|verification|verify|password|failed|declined|pending|processing|credited|received|refund|cashback|request|requested|collect)\\b", RegexOption.IGNORE_CASE)
+    private val direction = Regex("\\b(debited|paid|sent|transferred|credited|received)\\b", RegexOption.IGNORE_CASE)
+    private val reject = Regex("\\b(otp|one[ -]?time|verification|verify|password|failed|declined|pending|processing|refund|cashback|request|requested|collect)\\b", RegexOption.IGNORE_CASE)
     private val account = Regex("\\b(?:a/?c|acct|account)(?=\\b|[*x0-9])", RegexOption.IGNORE_CASE)
     private val upi = Regex("\\b(upi|vpa)\\b", RegexOption.IGNORE_CASE)
     private val balance = Regex("\\b(?:(?:avl\\.?|available|closing|remaining)\\s*(?:a/c\\s*)?(?:bal(?:ance)?|limit)|bal(?:ance)?\\s*[:.])", RegexOption.IGNORE_CASE)
@@ -12,10 +13,17 @@ object BankSmsParser {
     private val grouped = Regex("(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+|[0-9]{1,2}(?:,[0-9]{2})*,[0-9]{3})(?:\\.[0-9]{1,2})?")
     private val reference = Regex("\\b(?:upi\\s*(?:ref(?:erence)?|rrn)|utr|rrn|ref(?:erence)?)(?:\\s*(?:no\\.?|number|id))?\\s*[:/#-]?\\s*([a-z0-9][a-z0-9/-]{7,30})\\b", RegexOption.IGNORE_CASE)
 
+    fun supportsSender(sender: String?): Boolean = sender != null && senderId.matches(sender.trim())
+
     fun parse(source: String, allowlist: Set<String>, sender: String?, body: String?, observedAt: Long): CaptureCandidate? {
-        if (source !in allowlist || sender == null || !senderId.matches(sender.trim())) return null
+        if (source !in allowlist || !supportsSender(sender)) return null
         val text = body?.take(2000) ?: return null
         if (reject.containsMatchIn(text) || !outgoing.containsMatchIn(text) || !account.containsMatchIn(text) || !upi.containsMatchIn(text)) return null
+        // Bank alerts may describe both sides: our debit and the recipient's credit.
+        // The first movement distinguishes a debit with recipient-credit wording
+        // from an incoming credit mentioning the sender's debit.
+        val movement = direction.find(text)?.value ?: return null
+        if (!outgoing.matches(movement)) return null
         // A balance is not the payment amount. Multiple remaining amounts are ambiguous.
         val payment = balance.find(text)?.let { text.take(it.range.first) } ?: text
         val amounts = currency.findAll(payment).toList()

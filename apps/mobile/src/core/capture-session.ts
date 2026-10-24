@@ -1,5 +1,20 @@
 import type { CaptureStatus } from "./types";
 
+export function captureChoicesSaved(
+  selected: string[],
+  saved: string[],
+  consent: boolean,
+): boolean {
+  const current = new Set(selected);
+  const previous = new Set(saved);
+  return (
+    consent &&
+    current.size > 0 &&
+    current.size === previous.size &&
+    [...current].every((source) => previous.has(source))
+  );
+}
+
 type CaptureControl = {
   activate(
     account: string,

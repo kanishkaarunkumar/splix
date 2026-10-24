@@ -10,6 +10,7 @@ import {
   Badge,
   Button,
   Card,
+  Details,
   Empty,
   ErrorBox,
   Eyebrow,
@@ -122,7 +123,7 @@ export function GroupScreen({ route, navigation }: ScreenProps<"Group">) {
       </Row>
       {!!pending.length && (
         <Button
-          label={`${pending.length} pending · balances exclude these writes`}
+          label={`${pending.length} waiting to sync`}
           secondary
           onPress={() => navigation.navigate("Queue")}
         />
@@ -290,19 +291,21 @@ export function GroupScreen({ route, navigation }: ScreenProps<"Group">) {
               {event.payerId ? ` · paid by ${name(event.payerId)}` : ""}
             </Txt>
             {event.note && <Txt muted>{event.note}</Txt>}
-            {event.correctionOfEventId && (
-              <Txt mono muted>
-                Replaces {event.correctionOfEventId.slice(0, 8)}
+            <Details title="Record details">
+              {event.correctionOfEventId && (
+                <Txt mono muted>
+                  Replaces {event.correctionOfEventId.slice(0, 8)}
+                </Txt>
+              )}
+              {event.reversesEventId && (
+                <Txt mono muted>
+                  Original {event.reversesEventId.slice(0, 8)}
+                </Txt>
+              )}
+              <Txt muted mono>
+                Recorded {new Date(event.recorded_at).toLocaleString()}
               </Txt>
-            )}
-            {event.reversesEventId && (
-              <Txt mono muted>
-                Original {event.reversesEventId.slice(0, 8)}
-              </Txt>
-            )}
-            <Txt muted mono>
-              Recorded {new Date(event.recorded_at).toLocaleString()}
-            </Txt>
+            </Details>
             {event.kind === "expense" &&
               !corrected &&
               !group.archived &&
