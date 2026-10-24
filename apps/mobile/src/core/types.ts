@@ -79,6 +79,7 @@ export type CaptureDraft = {
   committedEventId?: string;
 };
 export type CaptureStatus = {
+  listenerConnected?: boolean;
   promptsEnabled?: boolean;
   sources?: string[];
   available: boolean;

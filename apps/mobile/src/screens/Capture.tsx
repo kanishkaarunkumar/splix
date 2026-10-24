@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { AppState, PermissionsAndroid, Platform } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { captureSources, captureStatus, nativeCapture } from "../core/capture";
+import { startCaptureSession } from "../core/capture-session";
 import { HomeDock } from "../components/HomeDock";
 import { useStore } from "../core/store";
 import type { CaptureDraft } from "../core/types";
@@ -25,7 +26,7 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
   const { session, groups, api } = useStore();
   const accountId = session!.id;
   const [status, setStatus] = useState(() => captureStatus(accountId)),
-    [selectedGroup, setSelectedGroup] = useState(""),
+    [selectedGroup, setSelectedGroup] = useState(status.groupId || ""),
     [duration, setDuration] = useState("60"),
     [sources, setSources] = useState<string[]>(status.sources || []),
     [agreed, setAgreed] = useState(status.consent),
@@ -63,12 +64,13 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
       const fresh = await api!.request<typeof groups>("/api/v1/groups");
       if (!fresh.some((g) => g.id === selectedGroup && !g.archived))
         throw new Error("Choose a current, active group you belong to.");
-      nativeCapture!.activate(
+      const saved = await startCaptureSession(
+        nativeCapture!,
         session!.id,
         selectedGroup,
         Number(duration) * 60000,
       );
-      refresh();
+      setStatus(saved);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -117,6 +119,11 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
           filters the source before parsing, never uploads notification text,
           and never uses SMS or accessibility access. Capture can miss payments
           or suggest duplicates. Your manual app always works without it.
+        </Txt>
+        <Txt>
+          No notification means no automatic detection. A payment success screen
+          inside Google Pay is not enough. This version does not read bank SMS
+          or notifications from your Messages app.
         </Txt>
         <Txt muted>
           Suggestions may include an amount, payee label, time, and the group
@@ -169,6 +176,9 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
               ? "Notification access is off"
               : "Notification access granted"}
           </Badge>
+          {status.granted && status.listenerConnected === false && (
+            <ErrorBox message="Access is granted, but Android has disconnected the listener. Turn Splix notification access off and on in Android settings, return here, then start again." />
+          )}
           {status.granted && (
             <Txt>
               {!status.consent
@@ -275,11 +285,27 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
                 captured group. You can change that when reviewing.
               </Txt>
               <Button
-                label="Start active mode"
+                label={
+                  status.paused ? "Start active mode" : "Update active mode"
+                }
                 disabled={!selectedGroup}
                 busy={busy}
                 onPress={() => void activate()}
               />
+              {!status.paused && (
+                <>
+                  <Badge>Active mode is on</Badge>
+                  <Txt>
+                    Group:{" "}
+                    {groups.find((g) => g.id === status.groupId)?.name ||
+                      "your selected group"}
+                    . Stops at{" "}
+                    {new Date(status.expiresAt!).toLocaleTimeString()}. Waiting
+                    for a readable payment notification.
+                  </Txt>
+                </>
+              )}
+              {error && <ErrorBox message={error} />}
             </Card>
           )}
         </>
@@ -289,7 +315,9 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
         secondary
         onPress={() => navigation.navigate("Inbox")}
       />
-      {error && <ErrorBox message={error} />}
+      {error && !(status.granted && status.consent) && (
+        <ErrorBox message={error} />
+      )}
     </Page>
   );
 }

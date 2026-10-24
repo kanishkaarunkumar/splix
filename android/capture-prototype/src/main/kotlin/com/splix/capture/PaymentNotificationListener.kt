@@ -8,6 +8,10 @@ import java.util.concurrent.Executors
 
 /** Receives OS notifications; only allowlisted sources are read and raw text is discarded after parse. */
 class PaymentNotificationListener : NotificationListenerService() {
+    companion object {
+        @Volatile var connected = false
+            private set
+    }
     private lateinit var store: CaptureStore
     private lateinit var executor: ExecutorService
 
@@ -33,12 +37,19 @@ class PaymentNotificationListener : NotificationListenerService() {
         }
     }
 
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        connected = true
+    }
+
     override fun onListenerDisconnected() {
+        connected = false
         store.activeCapture()?.let { store.pause(it.accountId) }
         super.onListenerDisconnected()
     }
 
     override fun onDestroy() {
+        connected = false
         if (::executor.isInitialized) executor.shutdownNow()
         if (::store.isInitialized) store.close()
         super.onDestroy()

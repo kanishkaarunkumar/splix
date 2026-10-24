@@ -7,6 +7,7 @@ import android.provider.Settings
 import com.splix.capture.CaptureControl
 import com.splix.capture.CaptureStore
 import com.splix.capture.PaymentPrompts
+import com.splix.capture.PaymentNotificationListener
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import org.json.JSONObject
@@ -37,7 +38,7 @@ class SplixCaptureModule : Module() {
                     (0 until json.length()).map { json.getString(it) }
                 } else emptyList<String>()
             }
-            mapOf("available" to true, "granted" to granted, "promptsEnabled" to PaymentPrompts.enabled(context), "consent" to sources.isNotEmpty(), "sources" to sources, "groupId" to active?.groupId,
+            mapOf("available" to true, "granted" to granted, "listenerConnected" to PaymentNotificationListener.connected, "promptsEnabled" to PaymentPrompts.enabled(context), "consent" to sources.isNotEmpty(), "sources" to sources, "groupId" to active?.groupId,
                 "expiresAt" to active?.expiresAtEpochMs, "paused" to (active == null))
         } }
         Function("openPromptSettings") { account: String ->
