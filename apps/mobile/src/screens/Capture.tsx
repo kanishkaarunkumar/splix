@@ -2,7 +2,10 @@ import React, { useCallback, useState } from "react";
 import { AppState, PermissionsAndroid, Platform } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { captureSources, captureStatus, nativeCapture } from "../core/capture";
-import { startCaptureSession } from "../core/capture-session";
+import {
+  startCaptureSession,
+  startPaymentReminders,
+} from "../core/capture-session";
 import { HomeDock } from "../components/HomeDock";
 import { useStore } from "../core/store";
 import type { CaptureDraft } from "../core/types";
@@ -101,29 +104,42 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
       setError((e as Error).message);
     }
   }
+  async function enableReminders() {
+    setBusy(true);
+    setError("");
+    try {
+      setStatus(await startPaymentReminders(nativeCapture!, accountId));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <Page
       title="Pay, then decide."
-      subtitle="Active Group Mode · entirely optional."
+      subtitle="Optional payment reminders · you choose what to share."
     >
       <Card>
         <Eyebrow>PRIVATE BY DESIGN</Eyebrow>
         <Heading small>A suggestion, never an expense.</Heading>
         <Txt>
-          With your permission, Splix checks selected UPI app notifications on
+          With your permission, Splix checks selected payment notifications on
           this Android device for likely outgoing payments. It stores a minimal
           private suggestion for you to review.
         </Txt>
         <Txt muted>
           Notification access can expose other notifications to an app. Splix
-          filters the source before parsing, never uploads notification text,
-          and never uses SMS or accessibility access. Capture can miss payments
-          or suggest duplicates. Your manual app always works without it.
+          filters the source before parsing and never uploads notification text.
+          Bank SMS notifications need the separate choice below. Splix does not
+          read your SMS inbox or use accessibility access. Capture can miss
+          payments or suggest duplicates. Your manual app always works without
+          it.
         </Txt>
         <Txt>
           No notification means no automatic detection. A payment success screen
-          inside Google Pay is not enough. This version does not read bank SMS
-          or notifications from your Messages app.
+          inside Google Pay is not enough. Enable bank transaction notifications
+          in your Messages app to detect SMS alerts after opting in below.
         </Txt>
         <Txt muted>
           Suggestions may include an amount, payee label, time, and the group
@@ -148,9 +164,9 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
           <Card>
             <Heading small>Reply from your notifications.</Heading>
             <Txt>
-              After a payment is detected in Active mode, type what it was for
-              directly in a Splix notification. Details stay private until you
-              review and confirm the group split.
+              After a payment is detected, type what it was for directly in a
+              Splix notification. Details stay private until you review and
+              confirm the group split.
             </Txt>
             <Badge warning={!status.promptsEnabled}>
               {status.promptsEnabled
@@ -177,26 +193,39 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
               : "Notification access granted"}
           </Badge>
           {status.granted && status.listenerConnected === false && (
-            <ErrorBox message="Access is granted, but Android has disconnected the listener. Turn Splix notification access off and on in Android settings, return here, then start again." />
+            <Card>
+              <ErrorBox message="Access is granted, but Android has disconnected the listener. Reconnect it below. If it stays disconnected, turn Splix notification access off and on in Android settings, then start again." />
+              <Button
+                label="Reconnect notification listener"
+                secondary
+                onPress={() =>
+                  run(() => nativeCapture!.reconnectListener(accountId))
+                }
+              />
+            </Card>
           )}
           {status.granted && (
             <Txt>
               {!status.consent
                 ? "Access is granted. Choose your payment apps and save your consent below."
                 : status.paused
-                  ? "Access and consent are saved. Choose a group below and tap Start active mode to begin."
-                  : "Active mode is running on this device."}
+                  ? "Access and consent are saved. Enable reminders below, or choose a timed active group."
+                  : status.remindersEnabled
+                    ? "Payment reminders are on. Choose a group after a payment is detected."
+                    : "Active mode is running on this device."}
             </Txt>
           )}
           {!status.paused && (
             <Card>
               <Txt>
-                Capturing for{" "}
-                {groups.find((g) => g.id === status.groupId)?.name ||
-                  "your selected group"}
+                {status.remindersEnabled
+                  ? "Payment reminders are on · choose a group later"
+                  : `Capturing for ${groups.find((g) => g.id === status.groupId)?.name || "your selected group"}`}
               </Txt>
               <Txt mono muted>
-                Stops at {new Date(status.expiresAt!).toLocaleTimeString()}
+                {status.remindersEnabled
+                  ? "Runs until paused, stopped or signed out."
+                  : `Stops at ${new Date(status.expiresAt!).toLocaleTimeString()}`}
               </Txt>
               <Row>
                 <Button
@@ -215,7 +244,7 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
             </Card>
           )}
           <Card>
-            <Heading small>Choose the sources</Heading>
+            <Heading small>1. Choose notification sources</Heading>
             <Txt muted>
               These are candidate sources; real-device coverage is still being
               evaluated.
@@ -234,6 +263,49 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
                 }
               />
             ))}
+            {status.smsPackage ? (
+              <>
+                <Check
+                  label={`Also inspect bank UPI SMS notifications from ${status.smsAppName || "Messages"}`}
+                  checked={sources.includes(status.smsPackage)}
+                  onChange={() =>
+                    setSources(
+                      sources.includes(status.smsPackage!)
+                        ? sources.filter((x) => x !== status.smsPackage)
+                        : [...sources, status.smsPackage!],
+                    )
+                  }
+                />
+                <Txt muted>
+                  Optional: new notifications from your current default SMS app
+                  are checked on this phone for bank UPI debit alerts. Sender
+                  and message text are discarded after parsing. OTPs, personal
+                  chats, failed payments and incoming credits are excluded.
+                  Ambiguous formats are skipped. This does not grant access to
+                  your SMS history.
+                </Txt>
+                <Button
+                  label={`Enable SMS notifications in ${status.smsAppName || "Messages"}`}
+                  secondary
+                  onPress={() =>
+                    run(() =>
+                      nativeCapture!.openSmsNotificationSettings(accountId),
+                    )
+                  }
+                />
+                <Txt muted>
+                  In Android settings, allow notifications for this app and for
+                  bank transaction conversations. Return here and save your
+                  choices. Splix cannot verify notification settings for every
+                  conversation.
+                </Txt>
+              </>
+            ) : (
+              <Txt muted>
+                No default SMS app is available on this device. Payment-app
+                sources and manual expenses still work.
+              </Txt>
+            )}
             <Check
               label="I understand and consent to private payment suggestions on this device"
               checked={agreed}
@@ -242,12 +314,21 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
             <Button
               label={
                 status.granted
-                  ? "Save payment app choices"
+                  ? "Save notification source choices"
                   : "Agree & open Android settings"
               }
               disabled={!agreed || !sources.length}
               onPress={() =>
-                run(() => nativeCapture!.consent(session!.id, sources))
+                run(() =>
+                  nativeCapture!.consent(
+                    session!.id,
+                    sources.filter(
+                      (source) =>
+                        captureSources.some((item) => item.id === source) ||
+                        source === status.smsPackage,
+                    ),
+                  ),
+                )
               }
             />
             {!status.paused && (
@@ -258,9 +339,34 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
           </Card>
           {status.granted && status.consent && (
             <Card>
-              <Heading small>
-                {status.paused ? "Ready to start" : "Change active group"}
-              </Heading>
+              <Heading small>2. Enable payment reminders</Heading>
+              <Txt>
+                No active group or timer required. After a detected payment,
+                name it in the notification, choose a group and split, or mark
+                it personal.
+              </Txt>
+              <Button
+                label={
+                  status.remindersEnabled
+                    ? "Payment reminders enabled"
+                    : "Enable payment reminders"
+                }
+                disabled={status.remindersEnabled || !status.promptsEnabled}
+                busy={busy}
+                onPress={() => void enableReminders()}
+              />
+              {!status.promptsEnabled && (
+                <Txt>Allow Splix payment prompts above first.</Txt>
+              )}
+              {status.remindersEnabled && (
+                <Badge>Reminders are on · choose the group later</Badge>
+              )}
+              {error && <ErrorBox message={error} />}
+            </Card>
+          )}
+          {status.granted && status.consent && (
+            <Card>
+              <Heading small>Optional: use a timed active group</Heading>
               <Choice
                 label="One active group"
                 value={selectedGroup}
@@ -286,13 +392,15 @@ export function CaptureScreen({ navigation }: ScreenProps<"Capture">) {
               </Txt>
               <Button
                 label={
-                  status.paused ? "Start active mode" : "Update active mode"
+                  status.paused || status.remindersEnabled
+                    ? "Start active mode"
+                    : "Update active mode"
                 }
                 disabled={!selectedGroup}
                 busy={busy}
                 onPress={() => void activate()}
               />
-              {!status.paused && (
+              {!status.paused && !status.remindersEnabled && (
                 <>
                   <Badge>Active mode is on</Badge>
                   <Txt>
@@ -361,7 +469,10 @@ export function InboxScreen({ route, navigation }: ScreenProps<"Inbox">) {
       d.accountId === session?.id &&
       d.state === "needs_review",
   );
-  const selectedGroupId = groupId || current?.groupId || "";
+  const capturedGroup = groups.find(
+    (g) => g.id === current?.groupId && !g.archived,
+  );
+  const selectedGroupId = groupId || capturedGroup?.id || "";
   function disposition(draft: CaptureDraft, state: "personal" | "dismissed") {
     setError("");
     try {
@@ -417,10 +528,10 @@ export function InboxScreen({ route, navigation }: ScreenProps<"Inbox">) {
               .map((g) => ({ value: g.id, label: g.name }))}
           />
           <Txt muted>
-            Captured for{" "}
-            {groups.find((g) => g.id === current.groupId)?.name ||
-              "an unavailable group"}
-            . An explicit group choice applies only to this review.
+            {current.groupId === "__choose_group__"
+              ? "Choose a group for this payment above."
+              : `Captured for ${capturedGroup?.name || "an unavailable group"}.`}{" "}
+            An explicit group choice applies only to this review.
           </Txt>
           <Button
             label="Continue to review"
@@ -467,7 +578,9 @@ export function InboxScreen({ route, navigation }: ScreenProps<"Inbox">) {
             {draft.enteredTitle && <Txt>{draft.enteredTitle}</Txt>}
             <Txt muted>
               {groups.find((g) => g.id === draft.groupId)?.name ||
-                "Captured group unavailable"}{" "}
+                (draft.groupId === "__choose_group__"
+                  ? "Choose a group during review"
+                  : "Captured group unavailable")}{" "}
               · {new Date(draft.observedAt).toLocaleDateString()}
             </Txt>
             {draft.duplicateWarning && (

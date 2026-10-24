@@ -5,6 +5,9 @@ export type CaptureModule = {
   setAccount(accountId: string | null): void;
   status(accountId: string): CaptureStatus;
   openPromptSettings(accountId: string): void;
+  openSmsNotificationSettings(accountId: string): void;
+  startReminders(accountId: string): void;
+  reconnectListener(accountId: string): void;
   consent(accountId: string, sources: string[]): void;
   activate(accountId: string, groupId: string, durationMs: number): void;
   pause(accountId: string): void;

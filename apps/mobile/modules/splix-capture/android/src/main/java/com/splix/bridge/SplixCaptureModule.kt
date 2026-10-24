@@ -8,6 +8,7 @@ import com.splix.capture.CaptureControl
 import com.splix.capture.CaptureStore
 import com.splix.capture.PaymentPrompts
 import com.splix.capture.PaymentNotificationListener
+import com.splix.capture.SmsNotificationSource
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import org.json.JSONObject
@@ -32,14 +33,17 @@ class SplixCaptureModule : Module() {
             val granted = CaptureControl.isAccessGranted(context)
             if (!granted) db.pause(account)
             val active = db.activeCapture()
+            val sms = SmsNotificationSource.packageName(context)
             val sources = db.readableDatabase.rawQuery("SELECT allowlist_json FROM capture_settings WHERE account_id=? AND consent_at>0", arrayOf(account)).use { cursor ->
                 if (cursor.moveToFirst()) {
                     val json = JSONArray(cursor.getString(0))
                     (0 until json.length()).map { json.getString(it) }
                 } else emptyList<String>()
             }
-            mapOf("available" to true, "granted" to granted, "listenerConnected" to PaymentNotificationListener.connected, "promptsEnabled" to PaymentPrompts.enabled(context), "consent" to sources.isNotEmpty(), "sources" to sources, "groupId" to active?.groupId,
-                "expiresAt" to active?.expiresAtEpochMs, "paused" to (active == null))
+            mapOf("available" to true, "granted" to granted, "listenerConnected" to PaymentNotificationListener.connected, "promptsEnabled" to PaymentPrompts.enabled(context), "consent" to sources.isNotEmpty(), "sources" to sources,
+                "smsPackage" to sms, "smsAppName" to sms?.let { SmsNotificationSource.label(context, it) },
+                "remindersEnabled" to (active?.alwaysOn == true), "groupId" to active?.groupId?.takeIf { it != CaptureStore.UNASSIGNED_GROUP },
+                "expiresAt" to active?.expiresAtEpochMs?.takeIf { active.alwaysOn == false }, "paused" to (active == null))
         } }
         Function("openPromptSettings") { account: String ->
             current(account)
@@ -50,6 +54,19 @@ class SplixCaptureModule : Module() {
             val activity = requireNotNull(appContext.currentActivity) { "Open the app to grant access" }
             CaptureControl.requestAccess(activity, db, account, sources.toSet())
         } }
+        Function("openSmsNotificationSettings") { account: String ->
+            current(account)
+            val sms = requireNotNull(SmsNotificationSource.packageName(context)) { "No default SMS app found on this phone" }
+            context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, sms).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+        Function("startReminders") { account: String -> store(account) { db ->
+            check(CaptureControl.isAccessGranted(context)) { "Enable notification access in Android settings first" }
+            check(PaymentPrompts.enabled(context)) { "Allow Splix payment prompts before enabling reminders" }
+            CaptureControl.reconnect(context)
+            db.startReminders(account)
+        } }
+        Function("reconnectListener") { account: String -> current(account); CaptureControl.reconnect(context) }
         Function("activate") { account: String, group: String, duration: Long ->
             current(account); CaptureControl.activate(context, account, group, duration)
         }

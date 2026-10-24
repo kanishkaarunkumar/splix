@@ -7,17 +7,18 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.json.JSONArray
 import java.util.UUID
 
-data class ActiveCapture(val accountId: String, val groupId: String, val expiresAtEpochMs: Long, val allowlistedPackages: Set<String>)
+data class ActiveCapture(val accountId: String, val groupId: String, val expiresAtEpochMs: Long, val allowlistedPackages: Set<String>, val startedAtEpochMs: Long = 0, val alwaysOn: Boolean = false)
 data class CapturedDraft(val id: String, val created: Boolean)
 
 /** App-private, account-scoped store. Raw notification text is never passed to this class. */
-class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_capture.db", null, 3) {
+class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_capture.db", null, 4) {
     private val appContext = context.applicationContext
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE capture_settings(
             account_id TEXT PRIMARY KEY, consent_at INTEGER NOT NULL, allowlist_json TEXT NOT NULL,
-            active_group_id TEXT, active_until INTEGER, paused INTEGER NOT NULL DEFAULT 1)""")
+            active_group_id TEXT, active_until INTEGER, paused INTEGER NOT NULL DEFAULT 1,
+            reminders_enabled INTEGER NOT NULL DEFAULT 0, capture_started_at INTEGER NOT NULL DEFAULT 0)""")
         db.execSQL("""CREATE TABLE payment_drafts(
             id TEXT PRIMARY KEY, account_id TEXT NOT NULL, source_package TEXT NOT NULL,
             source_key_hash TEXT NOT NULL, reference_fingerprint TEXT, amount_paise INTEGER NOT NULL,
@@ -34,6 +35,10 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) createClientState(db)
         if (oldVersion < 3) db.execSQL("ALTER TABLE payment_drafts ADD COLUMN entered_title TEXT")
+        if (oldVersion < 4) {
+            db.execSQL("ALTER TABLE capture_settings ADD COLUMN reminders_enabled INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE capture_settings ADD COLUMN capture_started_at INTEGER NOT NULL DEFAULT 0")
+        }
     }
 
     private fun createClientState(db: SQLiteDatabase) {
@@ -42,7 +47,8 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
 
     fun saveConsent(accountId: String, selectedSources: Set<String>) {
         require(accountId.isNotBlank())
-        require(selectedSources.isNotEmpty() && selectedSources.all { it in CANDIDATE_SOURCES })
+        val sms = SmsNotificationSource.packageName(appContext)
+        require(selectedSources.isNotEmpty() && selectedSources.all { it in CANDIDATE_SOURCES || it == sms })
         val values = ContentValues().apply {
             put("account_id", accountId); put("consent_at", System.currentTimeMillis())
             put("allowlist_json", JSONArray(selectedSources.sorted()).toString())
@@ -55,10 +61,19 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
     fun activate(accountId: String, groupId: String, expiresAtEpochMs: Long) {
         val now = System.currentTimeMillis()
         require(groupId.isNotBlank() && expiresAtEpochMs in (now + 60_000)..(now + MAX_ACTIVE_MS))
-        val values = ContentValues().apply { put("active_group_id", groupId); put("active_until", expiresAtEpochMs); put("paused", 0) }
+        val values = ContentValues().apply { put("active_group_id", groupId); put("active_until", expiresAtEpochMs); put("paused", 0); put("reminders_enabled", 0); put("capture_started_at", now) }
         require(writableDatabase.update("capture_settings", values, "account_id=? AND consent_at>0", arrayOf(accountId)) == 1) {
             "Explicit capture consent is required first"
         }
+        PaymentPrompts.cancelAccount(appContext, accountId)
+    }
+
+    fun startReminders(accountId: String) {
+        val values = ContentValues().apply {
+            putNull("active_group_id"); putNull("active_until"); put("paused", 0)
+            put("reminders_enabled", 1); put("capture_started_at", System.currentTimeMillis())
+        }
+        check(writableDatabase.update("capture_settings", values, "account_id=? AND consent_at>0", arrayOf(accountId)) == 1) { "Save your notification source consent first" }
         PaymentPrompts.cancelAccount(appContext, accountId)
     }
 
@@ -69,6 +84,7 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
     fun stop(accountId: String) {
         updateSettings(accountId, ContentValues().apply {
         putNull("active_group_id"); putNull("active_until"); put("paused", 1)
+        put("reminders_enabled", 0)
         })
         PaymentPrompts.cancelAccount(appContext, accountId)
     }
@@ -88,15 +104,16 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
 
     fun activeCapture(now: Long = System.currentTimeMillis()): ActiveCapture? {
         val accountId = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CURRENT_ACCOUNT, null) ?: return null
-        readableDatabase.query("capture_settings", arrayOf("account_id", "allowlist_json", "active_group_id", "active_until", "paused"),
+        readableDatabase.query("capture_settings", arrayOf("account_id", "allowlist_json", "active_group_id", "active_until", "paused", "reminders_enabled", "capture_started_at"),
             "account_id=?", arrayOf(accountId), null, null, null).use { cursor ->
             if (!cursor.moveToFirst()) return null
-            val group = cursor.getString(2) ?: return null
-            val expiry = if (cursor.isNull(3)) return null else cursor.getLong(3)
+            val alwaysOn = cursor.getInt(5) == 1
+            val group = if (alwaysOn) UNASSIGNED_GROUP else cursor.getString(2) ?: return null
+            val expiry = if (alwaysOn) Long.MAX_VALUE else if (cursor.isNull(3)) return null else cursor.getLong(3)
             if (cursor.getInt(4) != 0 || expiry <= now) return null
             val json = JSONArray(cursor.getString(1))
             val packages = (0 until json.length()).map { json.getString(it) }.toSet()
-            return ActiveCapture(accountId, group, expiry, packages)
+            return ActiveCapture(accountId, group, expiry, packages, cursor.getLong(6), alwaysOn)
         }
     }
 
@@ -106,6 +123,7 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
         try {
             val latest = activeCapture() ?: return null
             if (latest.accountId != account.accountId || latest.groupId != account.groupId
+                || latest.startedAtEpochMs != account.startedAtEpochMs
                 || candidate.sourcePackage !in latest.allowlistedPackages || latest.expiresAtEpochMs <= System.currentTimeMillis()) return null
             val sourceHash = CaptureParser.sha256(account.accountId + "\u0000" + candidate.sourcePackage + "\u0000" + sourceKey.take(512))
             val now = System.currentTimeMillis()
@@ -124,6 +142,14 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
                 }
                 db.setTransactionSuccessful()
                 return null
+            }
+            if (candidate.referenceFingerprint != null) {
+                val existing = db.rawQuery("SELECT id FROM payment_drafts WHERE account_id=? AND reference_fingerprint=? AND amount_paise=? LIMIT 1",
+                    arrayOf(account.accountId, candidate.referenceFingerprint, candidate.amountPaise.toString())).use { if (it.moveToFirst()) it.getString(0) else null }
+                if (existing != null) {
+                    db.setTransactionSuccessful()
+                    return CapturedDraft(existing, false)
+                }
             }
             val draftId = UUID.randomUUID().toString()
             val values = candidateValues(account, candidate, warning, now).apply {
@@ -219,6 +245,7 @@ class CaptureStore(context: Context) : SQLiteOpenHelper(context, "private_captur
         const val MAX_ACTIVE_MS = 4 * 60 * 60 * 1000L
         const val PREFS = "capture_account_slot"
         const val CURRENT_ACCOUNT = "account_id"
+        const val UNASSIGNED_GROUP = "__choose_group__"
         // Candidate package ids only. They are not claimed as supported until real-device tests pass.
         val CANDIDATE_SOURCES = setOf("com.phonepe.app", "net.one97.paytm", "com.google.android.apps.nbu.paisa.user")
     }

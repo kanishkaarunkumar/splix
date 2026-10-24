@@ -2,12 +2,12 @@
 
 ## Status and boundaries
 
-Proposed, not implemented. Supported Android UPI-app notifications may become private local suggestions while a group is active. No direct bank feed, payment verification, automatic debt, SMS access, or guaranteed detection. The manual app always remains available. Platform references and review gates are in [TECH_STACK.md](../TECH_STACK.md).
+Implemented as an Android test feature, with real-device coverage still under evaluation. Selected UPI-app notifications and separately opted-in bank SMS notifications from the current default Messages app may become private local suggestions. No direct bank feed, payment verification, automatic debt, SMS-inbox access, or guaranteed detection. The manual app always remains available. Platform references and review gates are in [TECH_STACK.md](../TECH_STACK.md).
 
 ## End-to-end flow
 
 1. Explain source selection, purpose, broad OS permission versus narrow app processing, local storage, retention, and deletion. Obtain affirmative opt-in before opening notification-access settings.
-2. Explicitly activate one nonarchived member group for a bounded duration on this device; display expiry/pause/stop.
+2. Enable payment reminders without preselecting a group, or explicitly activate one nonarchived member group for a bounded duration. Display current mode and pause/stop controls. Reminders require permission for Splix prompts; group selection happens during review for unassigned drafts.
 3. Native code checks consent/account/expiry and source allowlist before inspecting available content. Ignore unrelated sources and incoming/failed/pending signals. Parse raw text transiently, never log or upload it.
 4. Save minimum candidate fields: amount, payee label, source, observed time, optional reference, and group active at capture. Observed time is not a verified payment timestamp.
 5. Show a private review prompt when permitted; otherwise retain the private inbox entry. Android inline replies save a short user-entered description to the private draft only. Review, Personal, Later, replies and opening a deep link never post financial records; group/amount/split review and explicit confirmation in the app remain required.
@@ -39,7 +39,7 @@ These do not establish exactly-once accounting for every real-world payment. Dif
 
 ## Privacy and fallback requirements
 
-- Explicit supported-payment-app allowlist; no messaging/SMS harvesting, accessibility scraping, credentials, or unconsented capture.
+- Explicit payment-app source allowlist. A separate affirmative choice adds only the current default SMS app for likely bank UPI debit notifications. No SMS inbox/history queries, SMS permissions, accessibility scraping, credentials, or unconsented capture. Messages-app changes require opting in to the new source.
 - Raw text stays transient/on-device. No backend parsing, crash/analytics payloads, or personal fixtures. Persist only minimum parsed fields in app-private storage.
 - Exclude drafts/credentials from backups; decide retention including dedupe tombstones before pilot. Provide local deletion controls and explain that deleting local metadata cannot reverse committed server entries.
 - Permission revocation stops ingestion when observed; recheck on resume. Prompt denial leaves inbox/manual entry usable. Generic lock-screen text by default.

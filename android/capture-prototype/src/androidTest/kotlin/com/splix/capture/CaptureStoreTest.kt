@@ -11,6 +11,47 @@ import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class CaptureStoreTest {
+    @Test fun remindersKeepUnassignedDraftsAndMergeSamePaymentAcrossSources() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val account = UUID.randomUUID().toString()
+        CaptureStore(context).use { store ->
+            try {
+                store.setCurrentAccount(account)
+                store.saveConsent(account, setOf("com.phonepe.app", "net.one97.paytm"))
+                store.startReminders(account)
+                val active = store.activeCapture()!!
+                assertTrue(active.alwaysOn)
+                assertEquals(CaptureStore.UNASSIGNED_GROUP, active.groupId)
+                assertNotNull(store.activeCapture(System.currentTimeMillis() + CaptureStore.MAX_ACTIVE_MS + 1))
+                val candidate = CaptureCandidate("com.phonepe.app", 45000, null, "same-ref", System.currentTimeMillis(), "low")
+                val first = store.saveCandidate(active, "source-one", candidate)!!
+                val duplicate = store.saveCandidate(active, "source-two", candidate.copy(sourcePackage = "net.one97.paytm"))!!
+                assertEquals(first.id, duplicate.id)
+                assertFalse(duplicate.created)
+                assertEquals(1, store.draftCount(account))
+                assertTrue(store.replyToDraft(account, first.id, "Dinner", false))
+                assertEquals("Dinner", store.promptDraft(account, first.id)!!.title)
+                store.pause(account)
+                assertNull(store.activeCapture())
+                store.startReminders(account)
+                store.setCurrentAccount(null)
+                assertNull(store.activeCapture())
+            } finally { store.deleteAccountDrafts(account) }
+        }
+    }
+
+    @Test fun versionThreeUpgradeDefaultsToSmsAndRemindersOffWithoutDroppingRows() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        SQLiteDatabase.create(null).use { db ->
+            db.execSQL("CREATE TABLE capture_settings(account_id TEXT PRIMARY KEY,paused INTEGER)")
+            db.execSQL("INSERT INTO capture_settings VALUES('existing',1)")
+            CaptureStore(context).use { it.onUpgrade(db, 3, 4) }
+            db.rawQuery("SELECT account_id,paused,reminders_enabled,capture_started_at FROM capture_settings", null).use {
+                assertTrue(it.moveToFirst()); assertEquals("existing", it.getString(0))
+                assertEquals(1, it.getInt(1)); assertEquals(0, it.getInt(2)); assertEquals(0L, it.getLong(3))
+            }
+        }
+    }
     @Test fun repliesPersistPrivatelyAndRejectQueuedStaleAndOtherAccountActions() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val account = UUID.randomUUID().toString()
@@ -55,9 +96,10 @@ class CaptureStoreTest {
         SQLiteDatabase.create(null).use { db ->
             db.execSQL("CREATE TABLE payment_drafts(id TEXT PRIMARY KEY,state TEXT)")
             db.execSQL("CREATE TABLE client_state(account_id TEXT PRIMARY KEY,state_json TEXT)")
+            db.execSQL("CREATE TABLE capture_settings(account_id TEXT PRIMARY KEY,paused INTEGER)")
             db.execSQL("INSERT INTO payment_drafts VALUES('existing-draft','queued')")
             db.execSQL("INSERT INTO client_state VALUES('account','pending-client-state')")
-            CaptureStore(context).use { it.onUpgrade(db, 2, 3) }
+            CaptureStore(context).use { it.onUpgrade(db, 2, 4) }
             db.rawQuery("SELECT state,entered_title FROM payment_drafts WHERE id='existing-draft'", null).use { cursor ->
                 assertTrue(cursor.moveToFirst()); assertEquals("queued", cursor.getString(0)); assertTrue(cursor.isNull(1))
             }
@@ -74,7 +116,7 @@ class CaptureStoreTest {
         val group = UUID.randomUUID().toString()
         try {
             store.saveConsent(account, setOf("com.phonepe.app"))
-            store.activate(account, group, System.currentTimeMillis() + 60_000)
+            store.activate(account, group, System.currentTimeMillis() + 120_000)
             store.setCurrentAccount(account)
             val active = store.activeCapture()!!
             val first = CaptureCandidate("com.phonepe.app", 10000, "Cafe", "refhash", 10_000, "moderate")
@@ -101,7 +143,7 @@ class CaptureStoreTest {
             }
 
             assertNull(store.activeCapture(System.currentTimeMillis() + CaptureStore.MAX_ACTIVE_MS + 1))
-            store.activate(account, group, System.currentTimeMillis() + 60_000)
+            store.activate(account, group, System.currentTimeMillis() + 120_000)
             store.setCurrentAccount(otherAccount)
             assertNull(store.activeCapture())
         } finally {

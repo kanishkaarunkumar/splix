@@ -35,3 +35,26 @@ export async function startCaptureSession(
     );
   return saved;
 }
+
+export async function startPaymentReminders(
+  control: {
+    startReminders(account: string): void | Promise<void>;
+    status(account: string): CaptureStatus;
+  },
+  account: string,
+): Promise<CaptureStatus> {
+  await control.startReminders(account);
+  const saved = control.status(account);
+  if (
+    !saved.available ||
+    !saved.consent ||
+    !saved.granted ||
+    !saved.promptsEnabled ||
+    !saved.remindersEnabled ||
+    saved.paused
+  )
+    throw new Error(
+      "Payment reminders did not start. Check notification access and allow Splix payment prompts.",
+    );
+  return saved;
+}

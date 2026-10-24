@@ -79,6 +79,9 @@ export type CaptureDraft = {
   committedEventId?: string;
 };
 export type CaptureStatus = {
+  remindersEnabled?: boolean;
+  smsPackage?: string;
+  smsAppName?: string;
   listenerConnected?: boolean;
   promptsEnabled?: boolean;
   sources?: string[];

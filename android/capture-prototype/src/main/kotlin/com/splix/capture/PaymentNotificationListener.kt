@@ -29,8 +29,27 @@ class PaymentNotificationListener : NotificationListenerService() {
         val extras = sbn.notification.extras ?: return
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
         val body = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString()
-        val candidate = CaptureParser.parse(sbn.packageName, active.allowlistedPackages, title, body, sbn.postTime) ?: return
-        val sourceKey = sbn.key
+        val sms = sbn.packageName == SmsNotificationSource.packageName(this)
+        val candidate: CaptureCandidate
+        val sourceKey: String
+        if (sms) {
+            // MessagingStyle can include an old conversation. Inspect only the newest item.
+            @Suppress("DEPRECATION")
+            val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
+                ?.let { Notification.MessagingStyle.Message.getMessagesFromBundleArray(it) }
+            val newest = messages?.maxByOrNull { it.timestamp }
+            val sender = newest?.sender?.toString() ?: title
+            val text = newest?.text?.toString() ?: body
+            val observed = newest?.timestamp ?: sbn.postTime
+            if (observed < active.startedAtEpochMs || observed > System.currentTimeMillis() + 60_000) return
+            candidate = BankSmsParser.parse(sbn.packageName, active.allowlistedPackages, sender, text, observed) ?: return
+            // A Messages conversation reuses its notification key for different payments.
+            sourceKey = "sms:" + CaptureParser.sha256(sbn.key) + ":" + CaptureParser.sha256("$sender\u0000$text\u0000$observed")
+        } else {
+            if (sbn.packageName !in CaptureStore.CANDIDATE_SOURCES) return
+            candidate = CaptureParser.parse(sbn.packageName, active.allowlistedPackages, title, body, sbn.postTime) ?: return
+            sourceKey = candidate.referenceFingerprint?.let { "upi:" + CaptureParser.sha256(sbn.key) + ":" + it } ?: sbn.key
+        }
         executor.execute {
             val draft = store.saveCandidate(active, sourceKey, candidate)
             if (draft != null) PaymentPrompts.show(applicationContext, active.accountId, draft.id, onlyExisting = !draft.created)

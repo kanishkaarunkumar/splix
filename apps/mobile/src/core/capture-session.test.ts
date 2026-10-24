@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { startCaptureSession } from "./capture-session";
+import { startCaptureSession, startPaymentReminders } from "./capture-session";
 import type { CaptureStatus } from "./types";
 
 const active = (): CaptureStatus => ({
@@ -9,6 +9,36 @@ const active = (): CaptureStatus => ({
   paused: false,
   groupId: "trip",
   expiresAt: Date.now() + 60000,
+});
+
+test("reminders need no group or expiry and verify that prompts and access are enabled", async () => {
+  const status = (): CaptureStatus => ({
+    available: true,
+    granted: true,
+    consent: true,
+    paused: false,
+    promptsEnabled: true,
+    remindersEnabled: true,
+  });
+  expect(
+    (await startPaymentReminders({ startReminders() {}, status }, "alex"))
+      .remindersEnabled,
+  ).toBe(true);
+  await expect(
+    startPaymentReminders(
+      {
+        startReminders() {},
+        status: () => ({ ...status(), promptsEnabled: false }),
+      },
+      "alex",
+    ),
+  ).rejects.toThrow("did not start");
+  await expect(
+    startPaymentReminders(
+      { startReminders() {}, status: () => ({ ...status(), paused: true }) },
+      "alex",
+    ),
+  ).rejects.toThrow("did not start");
 });
 
 test("activation awaits the native write and reads back the active group", async () => {

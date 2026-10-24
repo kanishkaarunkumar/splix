@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import android.service.notification.NotificationListenerService
 
 /** Call requestAccess only from the visible disclosure and affirmative consent control. */
 object CaptureControl {
@@ -23,7 +24,14 @@ object CaptureControl {
 
     fun activate(context: Context, accountId: String, groupId: String, durationMs: Long) {
         require(isAccessGranted(context)) { "Enable notification access in Android settings first" }
+        reconnect(context)
         require(durationMs in 60_000..CaptureStore.MAX_ACTIVE_MS)
         CaptureStore(context).use { it.activate(accountId, groupId, System.currentTimeMillis() + durationMs) }
+    }
+
+    fun reconnect(context: Context) {
+        check(isAccessGranted(context)) { "Enable notification access in Android settings first" }
+        if (!PaymentNotificationListener.connected)
+            NotificationListenerService.requestRebind(ComponentName(context, PaymentNotificationListener::class.java))
     }
 }
