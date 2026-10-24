@@ -88,7 +88,12 @@ export function MembersScreen({ route }: ScreenProps<"Members">) {
             />
             {invite && (
               <>
-                <Txt mono>{invite.code}</Txt>
+                <Txt
+                  mono
+                  style={{ fontSize: 32, lineHeight: 42, letterSpacing: 6 }}
+                >
+                  {invite.code}
+                </Txt>
                 <Txt muted>
                   Expires {new Date(invite.expiresAt * 1000).toLocaleString()}
                 </Txt>

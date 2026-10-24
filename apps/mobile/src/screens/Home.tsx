@@ -192,9 +192,7 @@ export function Home({ route, navigation }: ScreenProps<"Home">) {
                   >
                     <Row>
                       <Avatar name={group.name} />
-                      <Txt mono>
-                        {group.archived ? "Archived" : "Active"} ↗
-                      </Txt>
+                      <Txt mono>{group.archived ? "Archived" : "Active"} ↗</Txt>
                     </Row>
                     <View style={{ gap: 7 }}>
                       <Heading small>{group.name}</Heading>
@@ -231,6 +229,9 @@ export function Home({ route, navigation }: ScreenProps<"Home">) {
                 label="Have a join code?"
                 value={code}
                 onChange={setCode}
+                autoCapitalize="characters"
+                placeholder="AB7K"
+                hint="New codes have 4 characters. Previously shared codes still work until they expire."
               />
               <Button
                 label="Request to join"

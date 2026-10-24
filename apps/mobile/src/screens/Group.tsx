@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View } from "react-native";
+import { View, useWindowDimensions } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useStore } from "../core/store";
 import { money } from "../core/money";
@@ -22,6 +22,12 @@ import {
   c,
 } from "../components/ui";
 export function GroupScreen({ route, navigation }: ScreenProps<"Group">) {
+  const { width, fontScale } = useWindowDimensions();
+  const stacked = width / fontScale < 430;
+  const actionsStyle = {
+    flexDirection: stacked ? ("column" as const) : ("row" as const),
+    alignItems: "stretch" as const,
+  };
   const { groupId } = route.params;
   const { groups, local, refreshGroup, api, offline, session } = useStore();
   const snapshot = local.snapshots[groupId],
@@ -88,16 +94,16 @@ export function GroupScreen({ route, navigation }: ScreenProps<"Group">) {
       subtitle={`${group.members.length} people, one shared story.`}
       footer={
         !group.archived && (
-          <Row>
+          <Row style={actionsStyle}>
             <Button
               label="+ Add expense"
-              compact
+              compact={!stacked}
               onPress={() => navigation.navigate("Expense", { groupId })}
             />
             <Button
               label="Record payment"
               secondary
-              compact
+              compact={!stacked}
               onPress={() => navigation.navigate("Settlement", { groupId })}
             />
           </Row>
@@ -122,7 +128,7 @@ export function GroupScreen({ route, navigation }: ScreenProps<"Group">) {
         />
       )}
       <Card>
-        <Row>
+        <Row style={{ flexWrap: "wrap" }}>
           <Heading small>Where you stand</Heading>
           <Txt mono muted>
             INR
@@ -132,10 +138,10 @@ export function GroupScreen({ route, navigation }: ScreenProps<"Group">) {
           <Loading />
         ) : (
           snapshot.balances.map((balance: Balance) => (
-            <Row key={balance.userId}>
-              <Row style={{ flex: 1 }}>
+            <Row key={balance.userId} style={actionsStyle}>
+              <Row style={{ flex: stacked ? undefined : 1, minWidth: 0 }}>
                 <Avatar name={name(balance.userId)} />
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Txt>
                     {name(balance.userId)}
                     {balance.userId === session?.id ? " (you)" : ""}
@@ -149,7 +155,14 @@ export function GroupScreen({ route, navigation }: ScreenProps<"Group">) {
                   </Txt>
                 </View>
               </Row>
-              <View style={{ alignItems: "flex-end", gap: 4 }}>
+              <View
+                style={{
+                  alignItems: stacked ? "flex-start" : "flex-end",
+                  gap: 8,
+                  minWidth: 0,
+                  maxWidth: stacked ? "100%" : "55%",
+                }}
+              >
                 <Txt
                   style={{
                     fontSize: 20,
@@ -160,9 +173,9 @@ export function GroupScreen({ route, navigation }: ScreenProps<"Group">) {
                   {money(balance.balancePaise)}
                 </Txt>
                 <Button
-                  label={`Explain ${name(balance.userId)}'s balance`}
+                  label="Explain balance"
+                  accessibilityLabel={`Explain ${name(balance.userId)}'s balance`}
                   secondary
-                  compact
                   onPress={() => void explain(balance.userId)}
                 />
               </View>
@@ -177,12 +190,12 @@ export function GroupScreen({ route, navigation }: ScreenProps<"Group">) {
       </Card>
       {explanation && (
         <Card>
-          <Row>
+          <Row style={actionsStyle}>
             <Heading small>{name(explanation.userId)}’s balance</Heading>
             <Button
               label="Close explanation"
               secondary
-              compact
+              compact={!stacked}
               onPress={() => setExplanation(null)}
             />
           </Row>
@@ -200,32 +213,32 @@ export function GroupScreen({ route, navigation }: ScreenProps<"Group">) {
           )}
         </Card>
       )}
-      <Row style={{ flexWrap: "wrap" }}>
+      <Row style={actionsStyle}>
         <Button
           label="People & invites"
           secondary
-          compact
+          compact={!stacked}
           onPress={() => navigation.navigate("Members", { groupId })}
         />
         <Button
           label="Monthly report"
           secondary
-          compact
+          compact={!stacked}
           onPress={() => navigation.navigate("Report", { groupId })}
         />
         <Button
           label="Close out"
           secondary
-          compact
+          compact={!stacked}
           onPress={() => navigation.navigate("Closeout", { groupId })}
         />
       </Row>
-      <Row>
+      <Row style={actionsStyle}>
         <Heading small>The shared history</Heading>
         <Button
           label="Refresh"
           secondary
-          compact
+          compact={!stacked}
           onPress={() => {
             setSearched(null);
             void refreshGroup(groupId).catch((e) => setError(e.message));

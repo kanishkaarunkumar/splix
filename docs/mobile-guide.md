@@ -49,6 +49,12 @@ A validation/authorization conflict is shown as Needs attention. Inspect group h
 
 To correct an expense, open its history entry, enter the replacement and a reason, review, then confirm. The original remains with a linked reversal and replacement. Balances and monthly reports reflect the correction, including corrections that move activity across months.
 
+## Group invites and responsive group pages (APK 1.0.4)
+
+New group join codes contain four uppercase letters/digits, excluding ambiguous I/O/0/1. Entry accepts lowercase and surrounding whitespace. Previously shared 16/32-character hexadecimal codes remain valid until revoked or expired. Codes still expire after 24 hours by default and require owner approval. Both API adapters retry collisions; PostgreSQL uniqueness and nested savepoints prevent a concurrent collision from aborting the full transaction. Existing codes are not reassigned to another group.
+
+Group balances and action rows stack when width relative to font scaling is limited. The visible Explain balance label stays short while its accessible name identifies the person. Buttons wrap labels, names and long titles wrap, and very long page titles use a smaller heading. Browser checks cover 320, 360, 390, 430, 768 and 844-pixel widths, portrait/landscape, long names and large balances; one narrow-phone scenario enlarges text by 1.6x. These are browser layout checks, not a claim of physical testing on every Android phone.
+
 ## Private payment suggestions
 
 ### Payment reminders and inline replies (APK 1.0.3)

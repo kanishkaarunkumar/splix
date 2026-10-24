@@ -20,6 +20,39 @@ from app.main import create_app
 from app.postgres import PostgresService
 
 
+def test_short_invite_collision_savepoint_normalization_and_approval(client, monkeypatch):
+    from app import postgres
+
+    owner, guest = register(client, "Owner"), register(client, "Guest")
+    first = client.post("/api/v1/groups", headers=headers(owner), json={"name": "First"}).json()
+    second = client.post("/api/v1/groups", headers=headers(owner), json={"name": "Second"}).json()
+    code1 = client.post(f"/api/v1/groups/{first['id']}/join-codes", headers=headers(owner)).json()[
+        "code"
+    ]
+    assert len(code1) == 4
+    generator = postgres.new_join_code
+    candidates = iter([code1])
+    monkeypatch.setattr(postgres, "new_join_code", lambda: next(candidates, None) or generator())
+    response = client.post(f"/api/v1/groups/{second['id']}/join-codes", headers=headers(owner))
+    assert response.status_code == 200, response.text
+    code2 = response.json()["code"]
+    assert len(code2) == 4 and code2 != code1
+    joined = client.post(
+        "/api/v1/groups/join", headers=headers(guest), json={"code": f" {code2.lower()} "}
+    )
+    assert joined.status_code == 200, joined.text
+    assert joined.json()["status"] == "pending" and joined.json()["groupId"] == second["id"]
+    assert client.get("/api/v1/groups", headers=headers(guest)).json() == []
+    request_id = joined.json()["id"]
+    approved = client.post(
+        f"/api/v1/groups/{second['id']}/join-requests/{request_id}",
+        headers=headers(owner),
+        json={"approve": True},
+    )
+    assert approved.status_code == 200, approved.text
+    assert client.get("/api/v1/groups", headers=headers(guest)).json()[0]["id"] == second["id"]
+
+
 @pytest.fixture()
 def dsn():
     value = os.getenv("SPLIX_TEST_RUNTIME_DATABASE_URL")

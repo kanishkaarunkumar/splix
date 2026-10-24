@@ -94,6 +94,7 @@ export function Heading({
       accessibilityRole="header"
       style={[
         s.heading,
+        Platform.OS === "web" && ({ overflowWrap: "anywhere" } as object),
         { color: surface.text },
         small && { fontSize: 23, lineHeight: 29, letterSpacing: -1 },
       ]}
@@ -293,6 +294,7 @@ export function Badge({
 }
 export function Button({
   label,
+  accessibilityLabel,
   onPress,
   secondary = false,
   disabled = false,
@@ -301,6 +303,7 @@ export function Button({
   compact = false,
 }: {
   label: string;
+  accessibilityLabel?: string;
   onPress: () => void;
   secondary?: boolean;
   disabled?: boolean;
@@ -311,7 +314,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel || label}
       accessibilityState={{ disabled: disabled || busy, busy }}
       disabled={disabled || busy}
       onPress={onPress}
@@ -354,7 +357,7 @@ export function Field({
   keyboardType?: KeyboardTypeOptions;
   multiline?: boolean;
   hint?: string;
-  autoCapitalize?: "none" | "words" | "sentences";
+  autoCapitalize?: "none" | "words" | "sentences" | "characters";
 }) {
   return (
     <View style={{ gap: 8 }}>
@@ -532,7 +535,7 @@ export function Page({
       >
         {!!title && (
           <View style={{ gap: 9, paddingVertical: 7 }}>
-            <Heading>{title}</Heading>
+            <Heading small={title.length > 32}>{title}</Heading>
             {subtitle && <Txt muted>{subtitle}</Txt>}
           </View>
         )}
@@ -550,12 +553,15 @@ export function Page({
   );
 }
 export const s = StyleSheet.create({
-  text: { fontFamily: fonts.body, fontSize: 14, lineHeight: 21 },
+  text: { fontFamily: fonts.body, fontSize: 14, lineHeight: 21, flexShrink: 1 },
   heading: {
     fontFamily: fonts.display,
     fontSize: 32,
     lineHeight: 38,
     letterSpacing: -1.3,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: "100%",
   },
   page: {
     width: "100%",
@@ -573,6 +579,9 @@ export const s = StyleSheet.create({
   },
   card: { padding: 22, gap: 16, borderRadius: 26 },
   button: {
+    minWidth: 0,
+    maxWidth: "100%",
+    flexShrink: 1,
     minHeight: 50,
     borderRadius: 15,
     paddingHorizontal: 17,
@@ -587,6 +596,8 @@ export const s = StyleSheet.create({
   },
   secondary: { backgroundColor: c.soft, borderColor: "#DCD8BF" },
   buttonLabel: {
+    flexShrink: 1,
+    minWidth: 0,
     fontFamily: fonts.medium,
     color: c.ink,
     fontSize: 13,
@@ -628,6 +639,7 @@ export const s = StyleSheet.create({
     lineHeight: 23,
   },
   avatar: {
+    flexShrink: 0,
     width: 44,
     height: 44,
     borderRadius: 14,

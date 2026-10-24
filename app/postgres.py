@@ -15,6 +15,7 @@ from psycopg_pool import ConnectionPool, PoolTimeout
 
 from .domain.errors import DomainError
 from .domain.expenses import prepare_expense
+from .domain.join_codes import MAX_ATTEMPTS, new_join_code, normalize_join_code
 from .service import AppService, Group, passwords
 
 
@@ -325,12 +326,21 @@ class PostgresService:
             raise DomainError(
                 "INVALID_INPUT", "Choose an active group and an expiry of 1 minute to 7 days."
             )
-        code, expiry = token_hex(16), datetime.now(UTC) + timedelta(seconds=ttl_seconds)
-        conn.execute(
-            "SELECT create_group_join_code(%s,%s,%s,%s)",
-            (uid(group_id), uid(actor), digest(code), expiry),
-        )
-        return {"code": code, "expiresAt": expiry.timestamp()}
+        expiry = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
+        for _ in range(MAX_ATTEMPTS):
+            code = new_join_code()
+            try:
+                # A savepoint keeps a concurrent code collision from aborting the request.
+                with conn.transaction():
+                    conn.execute(
+                        "SELECT create_group_join_code(%s,%s,%s,%s)",
+                        (uid(group_id), uid(actor), digest(code), expiry),
+                    )
+                return {"code": code, "expiresAt": expiry.timestamp()}
+            except psycopg.errors.UniqueViolation as exc:
+                if exc.diag.constraint_name != "group_join_codes_code_hash_key":
+                    raise
+        raise DomainError("UNAVAILABLE", "Could not create a unique join code. Try again.")
 
     @staticmethod
     def _join_view(row):
@@ -343,6 +353,7 @@ class PostgresService:
 
     @transaction()
     def join_group(self, conn, actor, code):
+        code = normalize_join_code(code)
         self._user(conn, actor)
         invite = conn.execute(
             "SELECT * FROM group_join_codes WHERE code_hash=%s AND revoked_at IS NULL AND expires_at>now()",
@@ -405,6 +416,7 @@ class PostgresService:
 
     @transaction()
     def revoke_join_code(self, conn, actor, code):
+        code = normalize_join_code(code)
         invite = conn.execute(
             "SELECT * FROM group_join_codes WHERE code_hash=%s", (digest(code),)
         ).fetchone()

@@ -14,6 +14,7 @@ from argon2 import PasswordHasher
 
 from .domain.errors import DomainError
 from .domain.expenses import prepare_expense
+from .domain.join_codes import MAX_ATTEMPTS, new_join_code, normalize_join_code
 from .domain.splits import Share, equal_split, exact_split, percentage_split, weighted_split
 
 
@@ -258,7 +259,12 @@ class AppService:
             raise DomainError(
                 "INVALID_INPUT", "Choose an active group and an expiry of 1 minute to 7 days."
             )
-        code = token_hex(8)
+        for _ in range(MAX_ATTEMPTS):
+            code = new_join_code()
+            if code not in self.join_codes:
+                break
+        else:
+            raise DomainError("UNAVAILABLE", "Could not create a unique join code. Try again.")
         self.join_codes[code] = {
             "group_id": group_id,
             "expires_at": datetime.now(UTC).timestamp() + ttl_seconds,
@@ -268,6 +274,7 @@ class AppService:
 
     @atomic
     def join_group(self, actor, code):
+        code = normalize_join_code(code)
         invite = self.join_codes.get(code)
         if not invite or invite["revoked"] or invite["expires_at"] <= datetime.now(UTC).timestamp():
             raise DomainError("CONFLICT", "Join code is invalid, expired, or revoked.")
@@ -327,6 +334,7 @@ class AppService:
 
     @atomic
     def revoke_join_code(self, actor, code):
+        code = normalize_join_code(code)
         invite = self.join_codes.get(code)
         if not invite:
             raise DomainError("NOT_FOUND", "Join code not found.")

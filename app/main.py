@@ -46,7 +46,7 @@ def create_app(database_url=None, service_override=None):
             if hasattr(current, "close"):
                 current.close()
 
-    application = FastAPI(title="Splix API", version="1.2.0", lifespan=lifespan)
+    application = FastAPI(title="Splix API", version="1.2.1", lifespan=lifespan)
     application.state.service = backend
     origins = [
         value.strip()

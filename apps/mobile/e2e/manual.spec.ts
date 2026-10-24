@@ -81,7 +81,7 @@ test("mobile manual journey, offline retry, correction, report and closeout", as
   ).toBeVisible();
   await page.getByRole("button", { name: "People & invites" }).click();
   await page.getByRole("button", { name: "Create join code" }).click();
-  const code = await page.getByText(/^[a-f0-9]{16,64}$/).textContent();
+  const code = await page.getByText(/^[A-HJ-NP-Z2-9]{4}$/).textContent();
   const groups = await request.get(`${API_URL}/api/v1/groups`, {
     headers: { Authorization: `Bearer ${memberData.sessionToken}` },
   });
